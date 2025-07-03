@@ -19,13 +19,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-import asyncio
 from typing import Optional
 
 import click
 
 from proton.vpn.cli.core.run_async import run_async
-from proton.vpn.cli.core.controller import Controller, ConnectionStateEnum
+from proton.vpn.cli.core.controller import Controller
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 
 
@@ -35,19 +34,8 @@ from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 @run_async
 async def connect(ctx, name: Optional[str]):
     """Connect to a vpn server by name"""
-
     controller = await Controller.create(params=ctx.obj)
-
-    await wait_for_current_tasks()
-
     await controller.connect(name)
-
-    # It's necessary to wait for one second to allow the background tasks
-    # to start.
-    #
-    # This will be immediately cancelled after the sleep but they ensure
-    # a completed connection.
-    await asyncio.sleep(1)
 
 
 @click.command()
@@ -55,22 +43,8 @@ async def connect(ctx, name: Optional[str]):
 @run_async
 async def disconnect(ctx):
     """Disconnect from a vpn server by name"""
-
     controller = await Controller.create(params=ctx.obj)
+    await controller.disconnect()
 
-    connector = await controller.get_vpn_connector()
-    if connector.current_connection:
-        await controller.wait_for_event([ConnectionStateEnum.CONNECTED])
-
-        await controller.disconnect()
-
+    # wait for post-disconnect notification killswitch implementation setting
     await wait_for_current_tasks()
-
-
-@click.group()  # nosemgrep: python.lang.best-practice.pass-body.pass-body-fn
-def server():
-    """The group that all server commands belong to"""
-
-
-server.add_command(connect)
-server.add_command(disconnect)

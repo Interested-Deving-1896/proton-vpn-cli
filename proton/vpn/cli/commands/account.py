@@ -24,7 +24,6 @@ import getpass
 import click
 from proton.vpn.cli.core.controller import Controller
 from proton.vpn.cli.core.run_async import run_async
-from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 
 
 @click.command()
@@ -33,10 +32,10 @@ from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 @run_async
 async def login(ctx, username: str):
     """Connects to a proton vpn account"""
-    controller = await Controller.create(params=ctx.obj)
-    await wait_for_current_tasks()
-    await controller.login(username, getpass.getpass(),
-                           lambda: getpass.getpass("Token: "))
+    controller = Controller(params=ctx.obj)   # We dont need the connector here
+    await controller.login(username,
+                           getpass.getpass,
+                           lambda: getpass.getpass("2FA Token: "))
 
 
 @click.command()
@@ -45,7 +44,6 @@ async def login(ctx, username: str):
 async def logout(ctx):
     """Disconnects from a proton vpn account"""
     controller = await Controller.create(params=ctx.obj)
-    await wait_for_current_tasks()
     await controller.logout()
 
 
@@ -56,13 +54,3 @@ async def info(ctx):
     """Prints account information to stdout"""
     controller = Controller(params=ctx.obj)  # We dont need the connector here
     click.echo(f'{controller.account_info()}')
-
-
-@click.group()  # nosemgrep: python.lang.best-practice.pass-body.pass-body-fn
-def account():
-    """The group command for the account commands"""
-
-
-account.add_command(login)
-account.add_command(logout)
-account.add_command(info)

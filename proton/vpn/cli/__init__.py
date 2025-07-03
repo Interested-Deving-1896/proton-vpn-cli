@@ -23,8 +23,8 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 import asyncio
 import click
 
-from proton.vpn.cli.commands import account
-from proton.vpn.cli.commands import server
+from proton.vpn.cli.commands.account import login, logout, info
+from proton.vpn.cli.commands.server import connect, disconnect
 from proton.vpn.cli.core.controller import Params
 
 
@@ -39,8 +39,14 @@ def app(ctx, verbose):
     ctx.obj.verbose = verbose
 
 
-app.add_command(account.account)
-app.add_command(server.server)
+# account related functionality
+app.add_command(login)
+app.add_command(logout)
+app.add_command(info)
+
+# server related functionality
+app.add_command(connect)
+app.add_command(disconnect)
 
 
 def main():

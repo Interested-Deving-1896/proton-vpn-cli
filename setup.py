@@ -19,6 +19,7 @@ setup(
         "proton-vpn-api-core",
         "proton-keyring-linux",
         "proton-vpn-network-manager",
+        "proton-vpn-local-agent",
         "click",
     ],
     extras_require={
@@ -30,7 +31,7 @@ setup(
             "pylint"
         ]
     },
-    packages=find_namespace_packages(include=["proton.vpn.cli.*"]),
+    packages=find_namespace_packages(include=["proton.vpn.*"]),
     include_package_data=True,
     python_requires=">=3.9",
     license="GPLv3",

@@ -25,9 +25,10 @@ from importlib import metadata
 from typing import Optional, Callable, List
 
 from proton.vpn.core.session_holder import ClientTypeMetadata
+from proton.session.exceptions import ProtonAPIAuthenticationNeeded
 from proton.vpn.core.api import ProtonVPNAPI
 from proton.vpn.connection.enum import ConnectionStateEnum
-from proton.vpn.core.connection import VPNStateSubscriber
+from proton.vpn.core.connection import VPNStateSubscriber, VPNConnector
 from proton.vpn.cli.core.semver import from_pep440
 from proton.vpn.session import ServerList
 
@@ -44,8 +45,10 @@ class Params:
 
 @asynccontextmanager
 async def _wait_for_event(
-        connector,
+        connector: VPNConnector,
+        expected_hit_count=1,
         event_types: Optional[List[ConnectionStateEnum]] = None,
+        ignore_types: Optional[List[ConnectionStateEnum]] = None,
         timeout=10):
 
     if not event_types:
@@ -59,17 +62,36 @@ async def _wait_for_event(
         This class listens for a given set of status changes and then
         triggers the given event.
         """
+        event_hit_count: int
+
         def status_update(self, status):
             if status.type in event_types:
+                self.event_hit_count -= 1
+                if self.event_hit_count == 0:
+                    event.set()
+            elif status.type not in ignore_types:
+                if status.type is ConnectionStateEnum.ERROR:
+                    print("Error occurred")
+                else:
+                    expected_types = ", ".join(ConnectionStateEnum(type).name for type in event_types)  # noqa: E501 # pylint: disable=C0301
+                    received_type = ConnectionStateEnum(status.type).name
+                    print(f"Unexpected event: Expected {expected_types}, Received {received_type}")
+
                 event.set()
 
     subscriber = Subscriber()
+    subscriber.event_hit_count = expected_hit_count
     connector.register(subscriber)
 
     yield
 
-    async with asyncio.timeout(timeout):
-        await event.wait()
+    try:
+        async with asyncio.timeout(timeout):
+            await event.wait()
+    except asyncio.exceptions.TimeoutError:
+        expected_types = ", ".join(ConnectionStateEnum(type).name for type in event_types)  # noqa: E501 # pylint: disable=C0301
+        print(f"Timed out after {timeout}s waiting for event(s): {expected_types}")
+
     connector.unregister(subscriber)
 
 
@@ -87,7 +109,7 @@ class Controller:
 
         version = from_pep440(metadata.version("proton-vpn-cli"))
         client_type_metadata = ClientTypeMetadata(
-            type="gui",  # pylint: disable=W0511 # TODO LT: Switch to 'cli'
+            type="cli",
             version=version
         )
 
@@ -105,36 +127,69 @@ class Controller:
         Establishes a VPN connection.
         :param server_name: The name of the server to connect to.
         """
-        async with _wait_for_event(await self.get_vpn_connector(),
-                                   [ConnectionStateEnum.CONNECTED]):
+        if not self._api.is_user_logged_in():
+            print("Authentication required. Please login before connecting.")
+            return
+
+        event_hit_count = 2  # two connected events are received during connection
+        connector = await self.get_vpn_connector()
+        if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+            # we receive an additional connect event on debian based distros during
+            # disconnection, so we need to separate disconnection from connection
+            # to ensure we correctly time switching between servers
+            await self.disconnect()
+
+        async with _wait_for_event(connector,
+                                   expected_hit_count=event_hit_count,
+                                   event_types=[ConnectionStateEnum.CONNECTED],
+                                   ignore_types=[ConnectionStateEnum.CONNECTING]):
             await self._connect(server_name)
 
     async def disconnect(self):
         """
         Terminates a VPN connection.
         """
-        if (await self.get_vpn_connector()).is_connected:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
-            async with _wait_for_event(await self.get_vpn_connector(),
-                                       [ConnectionStateEnum.DISCONNECTED]):
+        connector = await self.get_vpn_connector()
+        if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+            async with _wait_for_event(connector,
+                                       event_types=[ConnectionStateEnum.DISCONNECTED],
+                                       ignore_types=[ConnectionStateEnum.DISCONNECTING,
+                                                     ConnectionStateEnum.CONNECTED]):
                 await self._disconnect()
 
-    async def login(self, username: str, password: str,
+    async def login(self, username: str,
+                    get_password: Callable[[], str],
                     get_2fa: Callable[[], str]):
         """
         Logs the user in.
         :param username:
-        :param password:
+        :param get_password: A callable that will return the account password
         :param get_2fa: A callable that will return the two factor
             authentication token if invoked.
         """
+        if self._api.is_user_logged_in():
+            print("Already logged in, please logout first before changing accounts.")
+            return
+
+        password = get_password()
         login_result = await self._api.login(username, password)
-        if login_result.twofa_required:
-            await self._api.submit_2fa_code(get_2fa())
+        if not login_result.authenticated:
+            print("Authentication failed. Please check your username and password and try again.")
+            return
+
+        try:
+            while login_result.twofa_required:
+                login_result = await self._api.submit_2fa_code(get_2fa())
+        except ProtonAPIAuthenticationNeeded:
+            print("2FA Authentication failed. Please try again.")
 
     async def logout(self):
         """
         Logs the user out.
         """
+        if (await self.get_vpn_connector()).is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+            await self.disconnect()
+
         await self._api.logout()
 
     def account_info(self):
@@ -149,16 +204,6 @@ class Controller:
     def server_list(self) -> ServerList:
         """Returns the current server list."""
         return self._api.refresher.server_list
-
-    async def wait_for_event(
-            self,
-            event_type: Optional[List[ConnectionStateEnum]] = None,
-            timeout=10):
-        """Asyncronously waits for a connection state change to occur"""
-        async with _wait_for_event(await self.get_vpn_connector(),
-                                   event_type,
-                                   timeout):
-            pass
 
     async def get_vpn_connector(self):
         """Return the object that handles vpn connection and disconnection"""

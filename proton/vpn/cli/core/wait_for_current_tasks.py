@@ -28,6 +28,9 @@ async def wait_for_current_tasks(timeout=10):
     usefull for when we want to shutdown cleanly, or when waiting for some
     processing to complete.
     """
-    async with asyncio.timeout(timeout):
-        await asyncio.gather(*[t for t in asyncio.all_tasks()
-                             if t is not asyncio.current_task()])
+    try:
+        async with asyncio.timeout(timeout):
+            await asyncio.gather(*[t for t in asyncio.all_tasks()
+                                 if t is not asyncio.current_task()])
+    except asyncio.exceptions.TimeoutError:
+        print(f"Timed out after {timeout}s waiting for tasks to finish")

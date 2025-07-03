@@ -24,7 +24,7 @@ import functools
 
 def run_async(func):
     """
-    Wraps an async function i a call to 'asyncio.run'.
+    Wraps an async function in a call to 'asyncio.run'.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
