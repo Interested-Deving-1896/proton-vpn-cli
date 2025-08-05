@@ -131,7 +131,7 @@ class Controller:
             print("Authentication required. Please login before connecting.")
             return
 
-        event_hit_count = 2  # two connected events are received during connection
+        event_hit_count = 1  # only wait for the first connected event received during connection
         connector = await self.get_vpn_connector()
         if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             # we receive an additional connect event on debian based distros during

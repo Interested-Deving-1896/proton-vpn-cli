@@ -19,6 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from asyncio import CancelledError
 from typing import Optional
 
 import click
@@ -26,6 +27,7 @@ import click
 from proton.vpn.cli.core.run_async import run_async
 from proton.vpn.cli.core.controller import Controller
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
+from proton.vpn.cli.core.exception_handler import ExceptionHandler
 
 
 @click.command()
@@ -34,6 +36,10 @@ from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 @run_async
 async def connect(ctx, name: Optional[str]):
     """Connect to a vpn server by name"""
+    # Silence cancelled exceptions raised by tasks we don't need to wait for after connection.
+    # For example, some tasks are usually created to process a second Connected state broadcasted
+    # to signal that the VPN server successfully applied the requested connection features.
+    ExceptionHandler.absorb_uncaught_exceptions([CancelledError])
     controller = await Controller.create(params=ctx.obj)
     await controller.connect(name)
 
