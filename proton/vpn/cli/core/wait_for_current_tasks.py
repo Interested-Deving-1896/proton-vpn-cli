@@ -29,8 +29,10 @@ async def wait_for_current_tasks(timeout=10):
     processing to complete.
     """
     try:
-        async with asyncio.timeout(timeout):
-            await asyncio.gather(*[t for t in asyncio.all_tasks()
-                                 if t is not asyncio.current_task()])
+        future = asyncio.gather(
+            *[t for t in asyncio.all_tasks()
+              if t is not asyncio.current_task()]
+        )
+        await asyncio.wait_for(future, timeout)
     except asyncio.exceptions.TimeoutError:
         print(f"Timed out after {timeout}s waiting for tasks to finish")

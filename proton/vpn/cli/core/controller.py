@@ -86,8 +86,7 @@ async def _wait_for_event(
     yield
 
     try:
-        async with asyncio.timeout(timeout):
-            await event.wait()
+        await asyncio.wait_for(event.wait(), timeout)
     except asyncio.exceptions.TimeoutError:
         expected_types = ", ".join(ConnectionStateEnum(type).name for type in event_types)  # noqa: E501 # pylint: disable=C0301
         print(f"Timed out after {timeout}s waiting for event(s): {expected_types}")
