@@ -130,6 +130,12 @@ class Controller:
             print("Authentication required. Please login before connecting.")
             return
 
+        free_user = self._api.user_tier == 0
+        if free_user and server_name:
+            print("The free user plan does not include connecting to specified servers. "
+                  "Please use protonvpn-cli connect.")
+            return
+
         event_hit_count = 1  # only wait for the first connected event received during connection
         connector = await self.get_vpn_connector()
         if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
