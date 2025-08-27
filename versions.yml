@@ -1,3 +1,12 @@
+version: 4.9.10
+time: 2025/08/27 15:14
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Ensure server list is up-to-date before connecting"
+---
 version: 4.9.9
 time: 2025/08/11 12:57
 author: Richard Paterson

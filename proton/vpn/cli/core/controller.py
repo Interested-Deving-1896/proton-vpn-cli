@@ -118,7 +118,6 @@ class Controller:
     async def create(params: Params):
         """Preferred method to get an instance of Controller."""
         controller = Controller(params)
-        await controller.get_vpn_connector()
         return controller
 
     async def connect(self, server_name: Optional[str] = None):
@@ -205,20 +204,24 @@ class Controller:
             name=self._api.account_name
         )
 
-    @property
-    def server_list(self) -> ServerList:
-        """Returns the current server list."""
-        return self._api.refresher.server_list
+    async def get_updated_server_list(self) -> ServerList:
+        """Returns an always-up-to-date server list."""
+        cached_server_list = self._api.server_list
+        if cached_server_list.expired or cached_server_list.loads_expired:
+            print("Server list is outdated, updating... This may take a moment.")
+
+        return await self._api.refresher.server_list_updated()
 
     async def get_vpn_connector(self):
         """Return the object that handles vpn connection and disconnection"""
         return await self._api.get_vpn_connector()
 
     async def _connect(self, server_name: Optional[str] = None):
+        server_list = await self.get_updated_server_list()
         if server_name:
-            server = self._api.server_list.get_by_name(server_name)
+            server = server_list.get_by_name(server_name)
         else:
-            server = self._api.server_list.get_fastest()
+            server = server_list.get_fastest()
 
         vpn_server = (await self.get_vpn_connector()).get_vpn_server(
             server, self._api.refresher.client_config
