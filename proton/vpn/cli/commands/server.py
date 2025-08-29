@@ -41,7 +41,7 @@ async def connect(ctx, name: Optional[str]):
     # to signal that the VPN server successfully applied the requested connection features.
     ExceptionHandler.absorb_uncaught_exceptions([CancelledError])
     controller = await Controller.create(params=ctx.obj)
-    await controller.connect(name)
+    await controller.connect(ctx, name)
 
 
 @click.command()

@@ -32,7 +32,7 @@ from proton.vpn.cli.core.run_async import run_async
 @run_async
 async def login(ctx, username: str):
     """Connects to a proton vpn account"""
-    controller = Controller(params=ctx.obj)   # We dont need the connector here
+    controller = await Controller.create(params=ctx.obj)
     await controller.login(username,
                            getpass.getpass,
                            lambda: getpass.getpass("2FA Token: "))
@@ -52,5 +52,5 @@ async def logout(ctx):
 @run_async
 async def info(ctx):
     """Prints account information to stdout"""
-    controller = Controller(params=ctx.obj)  # We dont need the connector here
+    controller = await Controller.create(params=ctx.obj)
     click.echo(f'{controller.account_info()}')

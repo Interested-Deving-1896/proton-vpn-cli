@@ -1,3 +1,12 @@
+version: 4.9.11
+time: 2025/08/29 12:08
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Ensure client config, feature flags and certificate are updated when expired"
+---
 version: 4.9.10
 time: 2025/08/27 15:14
 author: Richard Paterson

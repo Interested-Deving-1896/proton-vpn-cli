@@ -35,6 +35,7 @@ from proton.vpn.session import ServerList
 from proton.vpn import logging  # pylint: disable=C0413 # noqa: E402
 
 LOGGING_FILENAME = "vpn-cli"
+DEFAULT_CLI_NAME = "protonvpn"
 
 
 @dataclass
@@ -120,7 +121,7 @@ class Controller:
         controller = Controller(params)
         return controller
 
-    async def connect(self, server_name: Optional[str] = None):
+    async def connect(self, ctx, server_name: Optional[str] = None):
         """
         Establishes a VPN connection.
         :param server_name: The name of the server to connect to.
@@ -131,8 +132,10 @@ class Controller:
 
         free_user = self._api.user_tier == 0
         if free_user and server_name:
-            print("The free user plan does not include connecting to specified servers. "
-                  "Please use protonvpn-cli connect.")
+            proton_cli_name = ctx.find_root().info_name or DEFAULT_CLI_NAME
+            print(f"Server {server_name} is not available on the free plan."
+                  f" Please use '{proton_cli_name} connect' to connect to available free servers"
+                  " or upgrade to access all servers.")
             return
 
         event_hit_count = 1  # only wait for the first connected event received during connection
@@ -210,11 +213,14 @@ class Controller:
         if cached_server_list.expired or cached_server_list.loads_expired:
             print("Server list is outdated, updating... This may take a moment.")
 
-        return await self._api.refresher.server_list_updated()
+        return await self._api.refresher.get_up_to_date_server_list()
 
     async def get_vpn_connector(self):
         """Return the object that handles vpn connection and disconnection"""
-        return await self._api.get_vpn_connector()
+        vpn_connector = await self._api.get_vpn_connector()
+        # make sure our certificate hasn't expired, or isn't about to.
+        await self._api.refresher.update_certificate_if_necessary()
+        return vpn_connector
 
     async def _connect(self, server_name: Optional[str] = None):
         server_list = await self.get_updated_server_list()
@@ -224,7 +230,7 @@ class Controller:
             server = server_list.get_fastest()
 
         vpn_server = (await self.get_vpn_connector()).get_vpn_server(
-            server, self._api.refresher.client_config
+            server, await self._api.refresher.get_up_to_date_client_config()
         )
 
         settings = await self._api.load_settings()
