@@ -138,6 +138,12 @@ class Controller:
                   " or upgrade to access all servers.")
             return
 
+        # make sure our certificate hasn't expired, or isn't about to.
+        # this needs to happen before we establish connection state
+        # otherwise if we are in a connected/error state then we will block
+        # after starting/restarting local agent listener synchronously
+        await self._api.refresher.update_certificate_if_necessary()
+
         event_hit_count = 1  # only wait for the first connected event received during connection
         connector = await self.get_vpn_connector()
         if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
@@ -218,8 +224,6 @@ class Controller:
     async def get_vpn_connector(self):
         """Return the object that handles vpn connection and disconnection"""
         vpn_connector = await self._api.get_vpn_connector()
-        # make sure our certificate hasn't expired, or isn't about to.
-        await self._api.refresher.update_certificate_if_necessary()
         return vpn_connector
 
     async def _connect(self, server_name: Optional[str] = None):
