@@ -1,3 +1,12 @@
+version: 4.9.13
+time: 2025/09/09 09:35
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Adds options for connection to fastest server in city or country"
+---
 version: 4.9.12
 time: 2025/09/04 08:44
 author: Richard Paterson

@@ -24,13 +24,23 @@ from dataclasses import dataclass
 from importlib import metadata
 from typing import Optional, Callable, List
 
-from proton.vpn.core.session_holder import ClientTypeMetadata
+from click.core import Context as ClickContext
+
 from proton.session.exceptions import ProtonAPIAuthenticationNeeded
+from proton.vpn.core.session_holder import ClientTypeMetadata
 from proton.vpn.core.api import ProtonVPNAPI
+from proton.vpn.connection import states
 from proton.vpn.connection.enum import ConnectionStateEnum
-from proton.vpn.core.connection import VPNStateSubscriber, VPNConnector
+from proton.vpn.core.connection import VPNStateSubscriber, VPNConnection, VPNConnector
 from proton.vpn.cli.core.semver import from_pep440
+from proton.vpn.cli.core.exceptions import \
+    AuthenticationRequiredError, \
+    CountryCodeError, \
+    CountryNameError, \
+    RequiresHigherTierError
 from proton.vpn.session import ServerList
+from proton.vpn.session.servers.country_codes import country_codes, get_country_code_for_name
+from proton.vpn.session.servers.types import LogicalServer
 
 from proton.vpn import logging  # pylint: disable=C0413 # noqa: E402
 
@@ -100,7 +110,7 @@ class Controller:
     The application business logic is in this class. The is the core of the
     application.
     """
-    def __init__(self, params: Params, api: ProtonVPNAPI = None):
+    def __init__(self, params: Params, click_ctx: ClickContext, api: ProtonVPNAPI = None):
         logging.config(filename=LOGGING_FILENAME)
         if params.verbose:
             logging.logging.getLogger().setLevel(logging.logging.INFO)
@@ -115,28 +125,91 @@ class Controller:
 
         self._api = api or ProtonVPNAPI(client_type_metadata)
 
+        self._click_context = click_ctx
+
     @staticmethod
-    async def create(params: Params):
+    async def create(params: Params, click_ctx: ClickContext):
         """Preferred method to get an instance of Controller."""
-        controller = Controller(params)
+        controller = Controller(params, click_ctx)
         return controller
 
-    async def connect(self, ctx, server_name: Optional[str] = None):
+    @property
+    def program_name(self) -> Optional[str]:
+        """Returns the name of the CLI"""
+        return self._click_context.find_root().info_name
+
+    @property
+    def is_logged_in(self) -> bool:
+        """Returns whether the user is logged in or not"""
+        return self._api.is_user_logged_in()
+
+    @property
+    def user_tier(self) -> int:
+        """Returns the Proton VPN tier"""
+        return self._api.user_tier
+
+    async def get_current_connection(self) -> Optional[VPNConnection]:
+        """Returns the current VPN connection or None if there isn't one."""
+        return (await self.get_vpn_connector()).current_connection
+
+    async def is_connection_active(self) -> bool:
         """
-        Establishes a VPN connection.
+        Returns whether the current connection is active or not.
+
+        A connection is considered active in the connecting, connected
+        and disconnecting states.
+        """
+        return (await self.get_vpn_connector()).is_connection_active
+
+    async def find_logical_server(
+        self,
+        server_name: Optional[str] = None,
+        country: Optional[str] = None,
+        city: Optional[str] = None
+    ) -> Optional[LogicalServer]:
+        """
+        Finds a server in the serverlist meeting the user's criteria
         :param server_name: The name of the server to connect to.
+        :param country: The country whose fastest server we want to connect to.
+        :param city: The city whose fastest server we want to connect to.
+        :return: The fastest logical server meeting the provided constraints.
         """
         if not self._api.is_user_logged_in():
-            print("Authentication required. Please login before connecting.")
-            return
+            raise AuthenticationRequiredError
 
-        free_user = self._api.user_tier == 0
+        free_user = self.user_tier == 0
         if free_user and server_name:
-            proton_cli_name = ctx.find_root().info_name or DEFAULT_CLI_NAME
-            print(f"Server {server_name} is not available on the free plan."
-                  f" Please use '{proton_cli_name} connect' to connect to available free servers"
-                  " or upgrade to access all servers.")
-            return
+            raise RequiresHigherTierError
+
+        logical_server = None
+
+        server_list = await self.get_updated_server_list()
+        # server name takes precedence
+        if server_name:
+            logical_server = server_list.get_by_name(server_name)
+        # or check if we're looking in a city
+        elif city:
+            logical_server = server_list.get_fastest_in_city(city)
+        # or see if we're looking in a country
+        elif country:
+            logical_server = self._get_country_server(country, server_list)
+        # otherwise just look for the fastest available server
+        else:
+            logical_server = server_list.get_fastest()
+
+        return logical_server
+
+    async def connect(
+        self,
+        server: LogicalServer
+    ) -> Optional[states.State]:
+        """
+        Establishes a VPN connection.
+        :param server: The specified server to connect to.
+        :return: Connection state on successful connection, None otherwise
+        """
+        if not self._api.is_user_logged_in():
+            raise AuthenticationRequiredError
 
         # make sure our certificate hasn't expired, or isn't about to.
         # this needs to happen before we establish connection state
@@ -147,8 +220,9 @@ class Controller:
         event_hit_count = 1  # only wait for the first connected event received during connection
         connector = await self.get_vpn_connector()
         if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
-            # we receive an additional connect event on debian based distros during
-            # disconnection, so we need to separate disconnection from connection
+            # an asynchronous connect event from local agent
+            # makes it difficult to time a state machine driven disconnect and connect
+            # ... So we need to separate disconnection from connection explicitly
             # to ensure we correctly time switching between servers
             await self.disconnect()
 
@@ -156,7 +230,13 @@ class Controller:
                                    expected_hit_count=event_hit_count,
                                    event_types=[ConnectionStateEnum.CONNECTED],
                                    ignore_types=[ConnectionStateEnum.CONNECTING]):
-            await self._connect(server_name)
+            await self._connect(server)
+
+        connection_state = None
+        if isinstance(connector.current_state, states.Connected):
+            connection_state = connector.current_state
+
+        return connection_state
 
     async def disconnect(self):
         """
@@ -221,18 +301,38 @@ class Controller:
 
         return await self._api.refresher.get_up_to_date_server_list()
 
-    async def get_vpn_connector(self):
+    async def get_vpn_connector(self) -> VPNConnector:
         """Return the object that handles vpn connection and disconnection"""
         vpn_connector = await self._api.get_vpn_connector()
         return vpn_connector
 
-    async def _connect(self, server_name: Optional[str] = None):
-        server_list = await self.get_updated_server_list()
-        if server_name:
-            server = server_list.get_by_name(server_name)
-        else:
-            server = server_list.get_fastest()
+    def _validate_country_code(self, country: str) -> Optional[str]:
+        if country in country_codes:
+            # user provided a valid code
+            return country
 
+        return None
+
+    def _get_country_server(self, country: str, server_list: ServerList) -> Optional[LogicalServer]:
+        server = None
+
+        if len(country) == 2:
+            # assume the user specified a country code
+            country_code = self._validate_country_code(country)
+            if not country_code:
+                raise CountryCodeError
+        else:
+            # assume user specified a country name
+            country_code = get_country_code_for_name(country)
+            if not country_code:
+                raise CountryNameError
+
+        if country_code:
+            server = server_list.get_fastest_in_country(country_code)
+
+        return server
+
+    async def _connect(self, server: LogicalServer):
         vpn_server = (await self.get_vpn_connector()).get_vpn_server(
             server, await self._api.refresher.get_up_to_date_client_config()
         )
@@ -241,7 +341,8 @@ class Controller:
 
         await (await self.get_vpn_connector()).connect(
             vpn_server,
-            protocol=settings.protocol)
+            protocol=settings.protocol
+        )
 
     async def _disconnect(self):
         await (await self.get_vpn_connector()).disconnect()

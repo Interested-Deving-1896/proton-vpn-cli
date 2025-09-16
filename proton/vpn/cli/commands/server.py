@@ -24,24 +24,83 @@ from typing import Optional
 
 import click
 
+from proton.vpn.cli.core.exceptions import \
+    AuthenticationRequiredError, \
+    CountryCodeError, \
+    CountryNameError, \
+    RequiresHigherTierError
 from proton.vpn.cli.core.run_async import run_async
-from proton.vpn.cli.core.controller import Controller
+from proton.vpn.cli.core.controller import Controller, DEFAULT_CLI_NAME
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 from proton.vpn.cli.core.exception_handler import ExceptionHandler
+from proton.vpn.session.exceptions import ServerNotFoundError
+from proton.vpn.session.servers.types import LogicalServer
 
 
 @click.command()
 @click.pass_context
-@click.argument("name", required=False)
+@click.argument("server_name", required=False)
+@click.option("--country", default=None)
+@click.option("--city", default=None)
 @run_async
-async def connect(ctx, name: Optional[str]):
-    """Connect to a vpn server by name"""
+async def connect(
+    ctx,
+    server_name: Optional[str],
+    city: Optional[str],
+    country: Optional[str]
+):
+    """Connect to a vpn server respecting user parameters"""
     # Silence cancelled exceptions raised by tasks we don't need to wait for after connection.
     # For example, some tasks are usually created to process a second Connected state broadcasted
     # to signal that the VPN server successfully applied the requested connection features.
     ExceptionHandler.absorb_uncaught_exceptions([CancelledError])
-    controller = await Controller.create(params=ctx.obj)
-    await controller.connect(ctx, name)
+
+    controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
+    server = None
+    connection_state = None
+
+    # attempt to find a satisfactory server, and connect to it
+    try:
+        server = await controller.find_logical_server(server_name, country, city)
+        if not server:
+            print("The selected server is currently unavailable")
+            return
+
+        connection_state = await controller.connect(server)
+
+    except AuthenticationRequiredError:
+        print("Authentication required. Please login before connecting.")
+    except ServerNotFoundError as exc:
+        if server_name:
+            print(f"Invalid server ID '{server_name}'. "
+                  "Please use a valid server ID from the server list.")
+        elif city:
+            print(f"City '{city}' not found or no servers available.")
+        else:
+            print(str(exc))
+    except CountryCodeError:
+        print(f"Invalid country code '{country}'. Please use a valid country code.")
+    except CountryNameError:
+        print(f"Invalid country name '{country}'. Please use a valid country name.")
+    except RequiresHigherTierError:
+        # when specifying a server name, the user requires a paying tier
+        free_user = controller.user_tier == 0
+        if free_user and server_name:
+            proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
+            print(f"Server {server_name} is not available on the free plan."
+                  f" Please use '{proton_cli_name} connect' to connect to available free servers"
+                  " or upgrade to access all servers.")
+
+    if connection_state:
+        # notify user of successful connection and server details
+        current_connection = connection_state.context.connection
+        print(f"Connected to {current_connection.server_name} "
+              f"in {_get_most_specific_server_location(server)}. "
+              f"Your new IP address is {current_connection.server_ip}.")
+    elif server:
+        # we found a server but the connection failed
+        print("Connection failed. "
+              "Try connecting to a different server or check your network settings.")
 
 
 @click.command()
@@ -49,8 +108,15 @@ async def connect(ctx, name: Optional[str]):
 @run_async
 async def disconnect(ctx):
     """Disconnect from a vpn server by name"""
-    controller = await Controller.create(params=ctx.obj)
+    controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     await controller.disconnect()
 
     # wait for post-disconnect notification killswitch implementation setting
     await wait_for_current_tasks()
+
+
+def _get_most_specific_server_location(server: LogicalServer) -> str:
+    if server.city:
+        return f"{server.city}, {server.entry_country_name}"
+
+    return server.entry_country_name

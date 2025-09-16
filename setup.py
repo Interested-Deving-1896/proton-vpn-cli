@@ -25,6 +25,7 @@ setup(
     extras_require={
         "development": [
             "pytest",
+            "pytest-asyncio",
             "pytest-coverage",
             "proton-core-internal",
             "flake8",
