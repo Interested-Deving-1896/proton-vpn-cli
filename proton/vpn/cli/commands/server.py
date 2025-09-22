@@ -87,16 +87,17 @@ async def connect(
         free_user = controller.user_tier == 0
         if free_user and server_name:
             proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-            print(f"Server {server_name} is not available on the free plan."
+            print(f"Server selection by ID is not available on the free plan."
                   f" Please use '{proton_cli_name} connect' to connect to available free servers"
                   " or upgrade to access all servers.")
 
     if connection_state:
         # notify user of successful connection and server details
         current_connection = connection_state.context.connection
+        server_ip = connection_state.context.event.context.connection_details.server_ipv4
         print(f"Connected to {current_connection.server_name} "
               f"in {_get_most_specific_server_location(server)}. "
-              f"Your new IP address is {current_connection.server_ip}.")
+              f"Your new IP address is {server_ip}.")
     elif server:
         # we found a server but the connection failed
         print("Connection failed. "
