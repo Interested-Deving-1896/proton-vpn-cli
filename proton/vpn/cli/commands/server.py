@@ -32,7 +32,6 @@ from proton.vpn.cli.core.exceptions import \
 from proton.vpn.cli.core.run_async import run_async
 from proton.vpn.cli.core.controller import Controller, DEFAULT_CLI_NAME
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
-from proton.vpn.cli.core.exception_handler import ExceptionHandler
 from proton.vpn.session.exceptions import ServerNotFoundError
 from proton.vpn.session.servers.types import LogicalServer
 
@@ -50,12 +49,12 @@ async def connect(
     country: Optional[str]
 ):
     """Connect to a vpn server respecting user parameters"""
+
+    controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     # Silence cancelled exceptions raised by tasks we don't need to wait for after connection.
     # For example, some tasks are usually created to process a second Connected state broadcasted
     # to signal that the VPN server successfully applied the requested connection features.
-    ExceptionHandler.absorb_uncaught_exceptions([CancelledError])
-
-    controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
+    controller.set_uncaught_exceptions_to_absorb([CancelledError])
     server = None
     connection_state = None
 

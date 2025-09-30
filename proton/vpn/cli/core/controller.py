@@ -22,22 +22,26 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import metadata
-from typing import Optional, Callable, List
+from types import TracebackType
+from typing import Callable, List, Optional, Type, Union
 
 from click.core import Context as ClickContext
+import sentry_sdk
 
 from proton.session.exceptions import ProtonAPIAuthenticationNeeded
-from proton.vpn.core.session_holder import ClientTypeMetadata
-from proton.vpn.core.api import ProtonVPNAPI
-from proton.vpn.connection import states
-from proton.vpn.connection.enum import ConnectionStateEnum
-from proton.vpn.core.connection import VPNStateSubscriber, VPNConnection, VPNConnector
-from proton.vpn.cli.core.semver import from_pep440
+from proton.vpn.cli.core.exception_handler import ExceptionHandler
 from proton.vpn.cli.core.exceptions import \
     AuthenticationRequiredError, \
     CountryCodeError, \
     CountryNameError, \
     RequiresHigherTierError
+from proton.vpn.cli.core.semver import from_pep440
+from proton.vpn.connection import states
+from proton.vpn.connection.enum import ConnectionStateEnum
+from proton.vpn.core.api import ProtonVPNAPI
+from proton.vpn.core.connection import VPNStateSubscriber, VPNConnection, VPNConnector
+from proton.vpn.core.session_holder import ClientTypeMetadata
+from proton.vpn.core.settings import Settings
 from proton.vpn.session import ServerList
 from proton.vpn.session.servers.country_codes import country_codes, get_country_code_for_name
 from proton.vpn.session.servers.types import LogicalServer
@@ -110,7 +114,12 @@ class Controller:
     The application business logic is in this class. The is the core of the
     application.
     """
-    def __init__(self, params: Params, click_ctx: ClickContext, api: ProtonVPNAPI = None):
+    def __init__(
+        self,
+        params: Params,
+        click_ctx: ClickContext,
+        api: ProtonVPNAPI = None
+    ):
         logging.config(filename=LOGGING_FILENAME)
         if params.verbose:
             logging.logging.getLogger().setLevel(logging.logging.INFO)
@@ -123,15 +132,38 @@ class Controller:
             version=version
         )
 
+        ExceptionHandler.enable(exception_reporter=self)
         self._api = api or ProtonVPNAPI(client_type_metadata)
-
         self._click_context = click_ctx
 
     @staticmethod
     async def create(params: Params, click_ctx: ClickContext):
         """Preferred method to get an instance of Controller."""
         controller = Controller(params, click_ctx)
+        await controller.get_settings()  # load settings
         return controller
+
+    def set_uncaught_exceptions_to_absorb(self, exceptions: List[BaseException]):
+        """
+        Silences list of provided exceptions if raised and uncaught
+        """
+        ExceptionHandler.set_uncaught_exceptions_to_absorb(exceptions)
+
+    # ExceptionReporter protocol
+    def report_error(
+        self,
+        error: Union[
+            BaseException,
+            tuple[
+                Optional[Type[BaseException]],
+                Optional[BaseException],
+                Optional[TracebackType]
+            ]
+        ]
+    ):
+        """Sends the error to Sentry."""
+        self._api.usage_reporting.report_error(error)
+        sentry_sdk.get_client().flush()  # pylint: disable=no-member
 
     @property
     def program_name(self) -> Optional[str]:
@@ -147,6 +179,10 @@ class Controller:
     def user_tier(self) -> int:
         """Returns the Proton VPN tier"""
         return self._api.user_tier
+
+    async def get_settings(self) -> Settings:
+        """Returns general settings."""
+        return await self._api.load_settings()
 
     async def get_current_connection(self) -> Optional[VPNConnection]:
         """Returns the current VPN connection or None if there isn't one."""
