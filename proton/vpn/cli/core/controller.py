@@ -214,7 +214,7 @@ class Controller:
             raise AuthenticationRequiredError
 
         free_user = self.user_tier == 0
-        if free_user and server_name:
+        if free_user and (server_name or country or city):
             raise RequiresHigherTierError
 
         logical_server = None

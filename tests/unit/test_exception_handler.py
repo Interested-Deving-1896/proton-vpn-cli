@@ -47,6 +47,7 @@ async def test_disable_exception_handler_removes_excepthooks():
     assert asyncio.get_event_loop().get_exception_handler() is orignal_asyncio_exception_handler
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "exception_type, is_handled", [
         (KeyboardInterrupt, False),  # Exception not inheriting Exception class
@@ -54,7 +55,7 @@ async def test_disable_exception_handler_removes_excepthooks():
         (Exception, True)
     ]
 )
-def test_exception_handling_reports_exceptions_when_relevant(exception_type, is_handled):
+async def test_exception_handling_reports_exceptions_when_relevant(exception_type, is_handled):
     reporter = Mock()
     ExceptionHandler.enable(exception_reporter=reporter)
 
@@ -71,7 +72,8 @@ def test_exception_handling_reports_exceptions_when_relevant(exception_type, is_
     ExceptionHandler.disable()
 
 
-def test_exception_handling_absorbs_silenced_exceptions():
+@pytest.mark.asyncio
+async def test_exception_handling_absorbs_silenced_exceptions():
     reporter = Mock()
     ExceptionHandler.enable(exception_reporter=reporter)
 
@@ -82,5 +84,5 @@ def test_exception_handling_absorbs_silenced_exceptions():
         None
     )
     reporter.report_error.assert_not_called()
-    
+
     ExceptionHandler.disable()

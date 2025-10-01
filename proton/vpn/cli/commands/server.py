@@ -82,13 +82,9 @@ async def connect(
     except CountryNameError:
         print(f"Invalid country name '{country}'. Please use a valid country name.")
     except RequiresHigherTierError:
-        # when specifying a server name, the user requires a paying tier
         free_user = controller.user_tier == 0
-        if free_user and server_name:
-            proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-            print(f"Server selection by ID is not available on the free plan."
-                  f" Please use '{proton_cli_name} connect' to connect to available free servers"
-                  " or upgrade to access all servers.")
+        if free_user:
+            _display_free_user_limitation(controller, server_name, city, country)
 
     if connection_state:
         # notify user of successful connection and server details
@@ -120,3 +116,30 @@ def _get_most_specific_server_location(server: LogicalServer) -> str:
         return f"{server.city}, {server.entry_country_name}"
 
     return server.entry_country_name
+
+
+def _display_free_user_limitation(
+    controller: Controller,
+    server_name: Optional[str],
+    city: Optional[str],
+    country: Optional[str]
+):
+    free_user = controller.user_tier == 0
+    if not free_user:
+        return
+
+    # when specifying a server name, the user requires a paying tier
+    if server_name:
+        proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
+        print(f"Server selection by ID is not available on the free plan."
+              f" Please use '{proton_cli_name} connect' to connect to available free servers"
+              " or upgrade to access all servers.")
+        return
+
+    # when specifying a country or city, the user requires a paying tier
+    if country or city:
+        proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
+        print("Location selection is not available on the free plan. "
+              f"Please use '{proton_cli_name} connect' to connect to available free servers "
+              "or upgrade to choose your location.")
+        return
