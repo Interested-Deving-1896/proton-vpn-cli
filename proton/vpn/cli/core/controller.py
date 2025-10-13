@@ -26,6 +26,7 @@ from types import TracebackType
 from typing import Callable, List, Optional, Type, Union
 
 from click.core import Context as ClickContext
+from packaging.version import Version
 import sentry_sdk
 
 from proton.session.exceptions import ProtonAPIAuthenticationNeeded
@@ -163,7 +164,11 @@ class Controller:
     ):
         """Sends the error to Sentry."""
         self._api.usage_reporting.report_error(error)
-        sentry_sdk.get_client().flush()  # pylint: disable=no-member
+        sentry_version = Version(metadata.version("sentry-sdk"))
+        if sentry_version < Version("2.0.0"):
+            sentry_sdk.flush()
+        else:
+            sentry_sdk.get_client().flush()  # pylint: disable=no-member
 
     @property
     def program_name(self) -> Optional[str]:

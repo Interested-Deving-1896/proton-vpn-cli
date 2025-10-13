@@ -24,6 +24,7 @@ setup(
     ],
     extras_require={
         "development": [
+            "packaging",
             "pytest",
             "pytest-asyncio",
             "pytest-coverage",
