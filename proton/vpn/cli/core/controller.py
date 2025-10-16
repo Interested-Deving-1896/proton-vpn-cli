@@ -22,6 +22,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import metadata
+import logging
 from types import TracebackType
 from typing import Callable, List, Optional, Type, Union
 
@@ -47,7 +48,7 @@ from proton.vpn.session import ServerList
 from proton.vpn.session.servers.country_codes import country_codes, get_country_code_for_name
 from proton.vpn.session.servers.types import LogicalServer
 
-from proton.vpn import logging  # pylint: disable=C0413 # noqa: E402
+from proton.vpn import logging as ProtonLogging
 
 LOGGING_FILENAME = "vpn-cli"
 DEFAULT_CLI_NAME = "protonvpn"
@@ -59,13 +60,18 @@ class Params:
     verbose: str = False
 
 
+class VPNConnectionError(Exception):
+    """
+    Error establishing a VPN server connection
+    """
+
+
 @asynccontextmanager
-async def _wait_for_event(
-        connector: VPNConnector,
-        expected_hit_count=1,
-        event_types: Optional[List[ConnectionStateEnum]] = None,
-        ignore_types: Optional[List[ConnectionStateEnum]] = None,
-        timeout=10):
+async def _wait_for_event(  # pylint: disable=R0913
+    connector: VPNConnector,
+    event_types: Optional[List[ConnectionStateEnum]] = None,
+    timeout=10
+):
 
     if not event_types:
         yield
@@ -79,35 +85,33 @@ async def _wait_for_event(
         triggers the given event.
         """
         event_hit_count: int
+        error_event_occurred: bool = False
 
         def status_update(self, status):
             if status.type in event_types:
-                self.event_hit_count -= 1
-                if self.event_hit_count == 0:
-                    event.set()
-            elif status.type not in ignore_types:
-                if status.type is ConnectionStateEnum.ERROR:
-                    print("Error occurred")
-                else:
-                    expected_types = ", ".join(ConnectionStateEnum(type).name for type in event_types)  # noqa: E501 # pylint: disable=C0301
-                    received_type = ConnectionStateEnum(status.type).name
-                    print(f"Unexpected event: Expected {expected_types}, Received {received_type}")
-
+                event.set()
+            elif status.type is ConnectionStateEnum.ERROR:
+                self.error_event_occurred = True
                 event.set()
 
     subscriber = Subscriber()
-    subscriber.event_hit_count = expected_hit_count
     connector.register(subscriber)
 
     yield
 
     try:
         await asyncio.wait_for(event.wait(), timeout)
-    except asyncio.exceptions.TimeoutError:
+
+    except asyncio.exceptions.TimeoutError as exc:
+        connector.unregister(subscriber)
         expected_types = ", ".join(ConnectionStateEnum(type).name for type in event_types)  # noqa: E501 # pylint: disable=C0301
-        print(f"Timed out after {timeout}s waiting for event(s): {expected_types}")
+        logger = ProtonLogging.getLogger(__name__)
+        logger.error(f"Timed out after {timeout}s waiting for event(s): {expected_types}")
+        raise TimeoutError from exc
 
     connector.unregister(subscriber)
+    if subscriber.error_event_occurred:
+        raise VPNConnectionError
 
 
 class Controller:
@@ -121,11 +125,12 @@ class Controller:
         click_ctx: ClickContext,
         api: ProtonVPNAPI = None
     ):
-        logging.config(filename=LOGGING_FILENAME)
+        ProtonLogging.config(filename=LOGGING_FILENAME)
+        logger = logging.getLogger()  # grab the root logger
         if params.verbose:
-            logging.logging.getLogger().setLevel(logging.logging.INFO)
+            logger.setLevel(logging.INFO)
         else:
-            logging.logging.getLogger().setLevel(logging.logging.ERROR)
+            logger.setLevel(logging.ERROR)
 
         version = from_pep440(metadata.version("proton-vpn-cli"))
         client_type_metadata = ClientTypeMetadata(
@@ -258,8 +263,8 @@ class Controller:
         # after starting/restarting local agent listener synchronously
         await self._api.refresher.update_certificate_if_necessary()
 
-        event_hit_count = 1  # only wait for the first connected event received during connection
         connector = await self.get_vpn_connector()
+
         if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             # an asynchronous connect event from local agent
             # makes it difficult to time a state machine driven disconnect and connect
@@ -267,11 +272,13 @@ class Controller:
             # to ensure we correctly time switching between servers
             await self.disconnect()
 
-        async with _wait_for_event(connector,
-                                   expected_hit_count=event_hit_count,
-                                   event_types=[ConnectionStateEnum.CONNECTED],
-                                   ignore_types=[ConnectionStateEnum.CONNECTING]):
-            await self._connect(server)
+        try:
+            async with _wait_for_event(connector,
+                                       event_types=[ConnectionStateEnum.CONNECTED]):
+                await self._connect(server)
+        except (TimeoutError, VPNConnectionError):
+            # If the connection fails, clean up NM setup
+            await self.disconnect(force=True)
 
         connection_state = None
         if isinstance(connector.current_state, states.Connected):
@@ -279,16 +286,14 @@ class Controller:
 
         return connection_state
 
-    async def disconnect(self):
+    async def disconnect(self, force: bool = False):
         """
         Terminates a VPN connection.
         """
         connector = await self.get_vpn_connector()
-        if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+        if connector.is_connection_active or force:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             async with _wait_for_event(connector,
-                                       event_types=[ConnectionStateEnum.DISCONNECTED],
-                                       ignore_types=[ConnectionStateEnum.DISCONNECTING,
-                                                     ConnectionStateEnum.CONNECTED]):
+                                       event_types=[ConnectionStateEnum.DISCONNECTED]):
                 await self._disconnect()
 
     async def login(self, username: str,

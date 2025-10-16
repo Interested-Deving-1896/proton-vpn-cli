@@ -20,11 +20,16 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch, PropertyMock
 import pytest
 import asyncio
 
-from proton.vpn.cli.core.controller import Controller
+from click.core import Context as ClickContext
+
+from proton.vpn.cli.core.controller import Controller, Params
 from proton.vpn.cli.core.exceptions import \
     AuthenticationRequiredError, \
     RequiresHigherTierError
 from proton.vpn.connection import states
+from proton.vpn.core.api import ProtonVPNAPI, VPNDataRefresher
+from proton.vpn.core.connection import VPNConnector
+from proton.vpn.session.servers.types import LogicalServer
 
 
 @pytest.mark.asyncio
@@ -69,24 +74,16 @@ async def test_find_logical_server_fails_when_specifying_server_name_as_free_use
 
 @pytest.mark.asyncio
 async def test_connect_disconnects_first_when_already_connected():
-    api_mock = AsyncMock()
-    params_mock = Mock()
-    click_ctx_mock = Mock()
-    vpn_connector_mock = Mock()
-    server = Mock()
+    api_mock = AsyncMock(spec=ProtonVPNAPI)
+    api_mock.refresher = AsyncMock(spec=VPNDataRefresher)
+    params_mock = Mock(spec=Params)
+    click_ctx_mock = Mock(spec=ClickContext)
+    vpn_connector_mock = Mock(spec=VPNConnector)
+    server = Mock(spec=LogicalServer)
 
     # mock active connection
-    is_connection_active_property = PropertyMock(return_value=True)
-    type(vpn_connector_mock).is_connection_active = is_connection_active_property
+    vpn_connector_mock.is_connection_active = True
     api_mock.get_vpn_connector.return_value = vpn_connector_mock
-
-    # Avoid awaitable errors
-    # awaitable
-    vpn_connector_mock.connect = AsyncMock()
-    vpn_connector_mock.disconnect = AsyncMock()
-    # not awaitable
-    api_mock.refresher.get_up_to_date_server_list.return_value = MagicMock()
-    api_mock.is_user_logged_in = MagicMock()
 
     # grab subscribers to connection events and
     # send them artificial events to avoid disconnect and connect blocking
@@ -99,6 +96,38 @@ async def test_connect_disconnects_first_when_already_connected():
             # then we let it know the "connection" has completed
             subscriber.status_update(states.Connected)
     notify_event.disconnect_subscribe = True
+    vpn_connector_mock.register.side_effect = notify_event
+
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+    await controller.connect(server)
+    vpn_connector_mock.disconnect.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_connect_disconnects_when_connection_fails():
+    api_mock = AsyncMock(spec=ProtonVPNAPI)
+    api_mock.refresher = AsyncMock(spec=VPNDataRefresher)
+    params_mock = Mock(spec=Params)
+    click_ctx_mock = Mock(spec=ClickContext)
+    vpn_connector_mock = Mock(spec=VPNConnector)
+    server = Mock(spec=LogicalServer)
+
+    # mock inactive connection
+    vpn_connector_mock.is_connection_active = False
+    api_mock.get_vpn_connector.return_value = vpn_connector_mock
+
+    # grab subscribers to connection events and
+    # send them an Error event to simulate connection failure
+    # followed by a Disconnected event to indicate end of disconnection
+    def notify_event(subscriber):
+        if not notify_event.error_sent:
+            # first we let the controller know the connection failed
+            subscriber.status_update(states.Error)
+            notify_event.error_sent = True
+        else:
+            # then we let it know the "disconnection" has completed
+            subscriber.status_update(states.Disconnected)
+    notify_event.error_sent = False
     vpn_connector_mock.register.side_effect = notify_event
 
     controller = Controller(params_mock, click_ctx_mock, api_mock)
@@ -131,8 +160,6 @@ async def test_find_logical_server_respects_highest_priority_constraint(
     api_mock.refresher.get_up_to_date_server_list.return_value = MagicMock()
     api_mock.is_user_logged_in = MagicMock()
 
-    # here we patch the asyncio.Event wait method
-    # to deactivate the connection state waiting system
     controller = Controller(params_mock, click_ctx_mock, api_mock)
     await controller.find_logical_server(server_name, country, city)
     server_list = await controller.get_updated_server_list()
