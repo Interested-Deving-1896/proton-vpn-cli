@@ -36,11 +36,26 @@ from proton.vpn.session.exceptions import ServerNotFoundError
 from proton.vpn.session.servers.types import LogicalServer
 
 
-@click.command()
+@click.command(
+    epilog="""\b
+              Examples:
+                  protonvpn connect --country US
+                  protonvpn connect --country "United States"
+                  protonvpn connect --city "New York" """)
 @click.pass_context
 @click.argument("server_name", required=False)
-@click.option("--country", default=None)
-@click.option("--city", default=None)
+@click.option(
+    "--country",
+    default=None,
+    help="""\b
+            Connect to fastest server in specified country
+            Country code (US, GB, DE) or full name ("United States")""")
+@click.option(
+    "--city",
+    default=None,
+    help="""\b
+            Connect to fastest server in specified city
+            City name (use quotes for multi-word: "New York", "Los Angeles")""")
 @run_async
 async def connect(
     ctx,
@@ -48,8 +63,7 @@ async def connect(
     city: Optional[str],
     country: Optional[str]
 ):
-    """Connect to a vpn server respecting user parameters"""
-
+    """Connect to Proton VPN"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     # Silence cancelled exceptions raised by tasks we don't need to wait for after connection.
     # For example, some tasks are usually created to process a second Connected state broadcasted
@@ -103,7 +117,7 @@ async def connect(
 @click.pass_context
 @run_async
 async def disconnect(ctx):
-    """Disconnect from a vpn server by name"""
+    """Disconnect from Proton VPN"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     await controller.disconnect()
 

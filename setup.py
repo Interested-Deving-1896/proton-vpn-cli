@@ -49,7 +49,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            ['protonvpn-cli=proton.vpn.cli:main'],
+            ['protonvpn=proton.vpn.cli:main'],
         ],
     }
 )

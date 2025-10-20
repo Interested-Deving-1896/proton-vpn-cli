@@ -72,7 +72,6 @@ async def _wait_for_event(  # pylint: disable=R0913
     event_types: Optional[List[ConnectionStateEnum]] = None,
     timeout=10
 ):
-
     if not event_types:
         yield
         return
@@ -265,7 +264,7 @@ class Controller:
 
         connector = await self.get_vpn_connector()
 
-        if connector.is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+        if connector.is_connection_active:
             # an asynchronous connect event from local agent
             # makes it difficult to time a state machine driven disconnect and connect
             # ... So we need to separate disconnection from connection explicitly
@@ -291,7 +290,7 @@ class Controller:
         Terminates a VPN connection.
         """
         connector = await self.get_vpn_connector()
-        if connector.is_connection_active or force:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+        if connector.is_connection_active or force:
             async with _wait_for_event(connector,
                                        event_types=[ConnectionStateEnum.DISCONNECTED]):
                 await self._disconnect()
@@ -326,7 +325,7 @@ class Controller:
         """
         Logs the user out.
         """
-        if (await self.get_vpn_connector()).is_connection_active:  # pylint: disable=C0301 # noqa: E501 # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
+        if (await self.get_vpn_connector()).is_connection_active:
             await self.disconnect()
 
         await self._api.logout()

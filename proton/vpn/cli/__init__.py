@@ -21,21 +21,49 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import asyncio
+from importlib.metadata import version, PackageNotFoundError
+
 import click
 
 from proton.vpn.cli.commands.account import login, logout, info
 from proton.vpn.cli.commands.server import connect, disconnect
 from proton.vpn.cli.core.controller import Params
 
+try:
+    __version__ = version("proton-vpn-cli")
+except PackageNotFoundError:
+    __version__ = "development"
 
-@click.group()
-@click.option('-v', '--verbose', is_flag=True, default=False)
+PROTON_VPN_LOGO = """
+%%%%%%%%%%%%     #########                ##                       ###     ############ ####    ###
+%%%%%%%%   @%    ###    ###              ####                       ###   #######    ########   ###
+ %%%%%%%%@%%%           ############### ##############  #######     #### #### ###    ########## ###
+  %%%%%% %%       ######## ##  ####  ######## ####  #######  ###     ### ###  ######### ### #######
+   %%%% %%       ###       ##  ####  ######## ####  #######  ###      #####   ###       ###   #####
+    %%%%%        ###       ##   ########  #### ####### ####  ###      #####   ###       ###    ####"""  # noqa: E501 # pylint: disable=C0301
+
+
+class _OrderedGroup(click.Group):
+    """OrderedGroup lists commands in the order that they were added"""
+    def list_commands(self, ctx):
+        return self.commands
+
+
+@click.group(
+    cls=_OrderedGroup,
+    help=f"\b {PROTON_VPN_LOGO} {__version__}",
+    epilog="""\b
+              NEED HELP?
+              Report issues:  https://protonvpn.com/support-form""")
+@click.option(
+    '-v',
+    '--verbose',
+    help="Show detailed output during command execution",
+    is_flag=True,
+    default=False)
 @click.pass_context
 def app(ctx, verbose):
-    """
-    The top level command for the application, allows configuration of flags
-    that are shared between all commands.
-    """
+    """Groups all CLI commands"""
     ctx.obj.verbose = verbose
 
 
@@ -51,5 +79,4 @@ app.add_command(disconnect)
 
 def main():
     """Runs the CLI."""
-
     asyncio.run(app(obj=Params()))  # pylint: disable=E1120

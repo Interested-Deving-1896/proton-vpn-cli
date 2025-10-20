@@ -45,6 +45,6 @@ Package %{{unmangled_name}}.
 %pyproject_save_files proton
 
 %files -n %{{name}} -f %{{pyproject_files}}
-%{{_bindir}}/protonvpn-cli
+%{{_bindir}}/protonvpn
 
 %changelog
