@@ -38,7 +38,6 @@ from proton.vpn.cli.core.exceptions import \
     CountryCodeError, \
     CountryNameError, \
     RequiresHigherTierError
-from proton.vpn.cli.core.semver import from_pep440
 from proton.vpn.connection import states
 from proton.vpn.connection.enum import ConnectionStateEnum
 from proton.vpn.core.api import ProtonVPNAPI
@@ -130,10 +129,8 @@ class Controller:
         else:
             logger.setLevel(logging.ERROR)
 
-        version = from_pep440(metadata.version("proton-vpn-cli"))
         client_type_metadata = ClientTypeMetadata(
-            type="cli",
-            version=version
+            type="cli"
         )
 
         ExceptionHandler.enable(exception_reporter=self)
