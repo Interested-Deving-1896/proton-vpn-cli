@@ -21,6 +21,7 @@ setup(
         "proton-vpn-network-manager",
         "proton-vpn-local-agent",
         "click",
+        "dbus-fast"
     ],
     extras_require={
         "development": [

@@ -31,6 +31,7 @@ from packaging.version import Version
 import sentry_sdk
 
 from proton.session.exceptions import ProtonAPIAuthenticationNeeded
+from proton.vpn import logging as ProtonLogging
 from proton.vpn.cli.core.exception_handler import ExceptionHandler
 from proton.vpn.cli.core.exceptions import \
     AuthenticationRequiredError, \
@@ -47,8 +48,6 @@ from proton.vpn.core.settings import Settings
 from proton.vpn.session import ServerList
 from proton.vpn.session.servers.country_codes import country_codes, get_country_code_for_name
 from proton.vpn.session.servers.types import LogicalServer
-
-from proton.vpn import logging as ProtonLogging
 
 LOGGING_FILENAME = "vpn-cli"
 DEFAULT_CLI_NAME = "protonvpn"

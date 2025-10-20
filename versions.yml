@@ -1,3 +1,12 @@
+version: 4.9.20
+time: 2025/10/20 11:23
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Fail if attempting to run CLI in parallel with GTK app"
+---
 version: 4.9.19
 time: 2025/10/17 17:53
 author: Richard Paterson

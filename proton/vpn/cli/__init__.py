@@ -22,8 +22,12 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
 from importlib.metadata import version, PackageNotFoundError
+import sys
 
 import click
+from dbus_fast.aio import MessageBus
+from dbus_fast import BusType, Message, MessageType
+
 
 from proton.vpn.cli.commands.account import login, logout, info
 from proton.vpn.cli.commands.server import connect, disconnect
@@ -34,13 +38,44 @@ try:
 except PackageNotFoundError:
     __version__ = "development"
 
-PROTON_VPN_LOGO = """
-%%%%%%%%%%%%     #########                ##                       ###     ############ ####    ###
-%%%%%%%%   @%    ###    ###              ####                       ###   #######    ########   ###
- %%%%%%%%@%%%           ############### ##############  #######     #### #### ###    ########## ###
-  %%%%%% %%       ######## ##  ####  ######## ####  #######  ###     ### ###  ######### ### #######
-   %%%% %%       ###       ##  ####  ######## ####  #######  ###      #####   ###       ###   #####
-    %%%%%        ###       ##   ########  #### ####### ####  ###      #####   ###       ###    ####"""  # noqa: E501 # pylint: disable=C0301
+PROTON_VPN_LOGO = r"""
+  ____            _               __     ______  _   _
+ |  _ \ _ __ ___ | |_ ___  _ __   \ \   / /  _ \| \ | |
+ | |_) | '__/ _ \| __/ _ \| '_ \   \ \ / /| |_) |  \| |
+ |  __/| | | (_) | || (_) | | | |   \ V / |  __/| |\  |
+ |_|   |_|  \___/ \__\___/|_| |_|    \_/  |_|   |_| \_|"""
+
+GTK_APP_ID = "proton.vpn.app.gtk"
+
+
+async def _vpn_gui_running() -> bool:
+    bus = await MessageBus(bus_type=BusType.SESSION).connect()
+
+    reply = await bus.call(
+        Message(
+            destination="org.freedesktop.DBus",
+            path="/org/freedesktop/DBus",
+            interface="org.freedesktop.DBus",
+            member="ListNames",
+        )
+    )
+
+    if reply.message_type == MessageType.ERROR:
+        return False
+
+    session_bus_names = reply.body[0]
+    return GTK_APP_ID in session_bus_names
+
+
+_CLICK_CONTEXT_SETTINGS = {"help_option_names": ['-h', '--help']}
+
+
+def _is_help_requested() -> bool:
+    for help_flag in _CLICK_CONTEXT_SETTINGS["help_option_names"]:
+        if help_flag in sys.argv:
+            return True
+
+    return False
 
 
 class _OrderedGroup(click.Group):
@@ -51,6 +86,7 @@ class _OrderedGroup(click.Group):
 
 @click.group(
     cls=_OrderedGroup,
+    context_settings=_CLICK_CONTEXT_SETTINGS,
     help=f"\b {PROTON_VPN_LOGO} {__version__}",
     epilog="""\b
               NEED HELP?
@@ -65,6 +101,13 @@ class _OrderedGroup(click.Group):
 def app(ctx, verbose):
     """Groups all CLI commands"""
     ctx.obj.verbose = verbose
+    command_help_requested = _is_help_requested()
+    vpn_gui_running = asyncio.run(_vpn_gui_running())
+    if not command_help_requested and vpn_gui_running:
+        click.echo("Error: Proton VPN desktop app is currently running\n"
+                   "The CLI and GUI cannot run simultaneously. "
+                   "Please close the GUI application and try again.")
+        ctx.exit()
 
 
 # account related functionality
