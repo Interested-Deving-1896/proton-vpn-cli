@@ -29,7 +29,7 @@ from dbus_fast.aio import MessageBus
 from dbus_fast import BusType, Message, MessageType
 
 
-from proton.vpn.cli.commands.account import login, logout, info
+from proton.vpn.cli.commands.account import signin, signout, info
 from proton.vpn.cli.commands.server import connect, disconnect
 from proton.vpn.cli.core.controller import Params
 
@@ -111,8 +111,8 @@ def app(ctx, verbose):
 
 
 # account related functionality
-app.add_command(login)
-app.add_command(logout)
+app.add_command(signin)
+app.add_command(signout)
 app.add_command(info)
 
 # server related functionality

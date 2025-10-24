@@ -82,7 +82,7 @@ async def connect(
         connection_state = await controller.connect(server)
 
     except AuthenticationRequiredError:
-        print("Authentication required. Please login before connecting.")
+        print("Authentication required. Please sign in before connecting.")
     except ServerNotFoundError as exc:
         if server_name:
             print(f"Invalid server ID '{server_name}'. "

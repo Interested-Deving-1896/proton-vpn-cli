@@ -30,8 +30,8 @@ from proton.vpn.cli.core.run_async import run_async
 @click.argument('username')
 @click.pass_context
 @run_async
-async def login(ctx, username: str):
-    """Login with Proton VPN credentials"""
+async def signin(ctx, username: str):
+    """Sign in with Proton VPN credentials"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     await controller.login(username,
                            getpass.getpass,
@@ -41,7 +41,7 @@ async def login(ctx, username: str):
 @click.command()
 @click.pass_context
 @run_async
-async def logout(ctx):
+async def signout(ctx):
     """Disconnect and remove credentials """
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     await controller.logout()

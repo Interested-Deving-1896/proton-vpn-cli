@@ -273,7 +273,7 @@ class Controller:
                 await self._connect(server)
         except (TimeoutError, VPNConnectionError):
             # If the connection fails, clean up NM setup
-            await self.disconnect(force=True)
+            await self.disconnect()
 
         connection_state = None
         if isinstance(connector.current_state, states.Connected):
@@ -281,12 +281,12 @@ class Controller:
 
         return connection_state
 
-    async def disconnect(self, force: bool = False):
+    async def disconnect(self):
         """
         Terminates a VPN connection.
         """
         connector = await self.get_vpn_connector()
-        if connector.is_connection_active or force:
+        if not isinstance(connector.current_state, states.Disconnected):
             async with _wait_for_event(connector,
                                        event_types=[ConnectionStateEnum.DISCONNECTED]):
                 await self._disconnect()
@@ -302,7 +302,7 @@ class Controller:
             authentication token if invoked.
         """
         if self._api.is_user_logged_in():
-            print("Already logged in, please logout first before changing accounts.")
+            print("Already signed in, please sign out first before changing accounts.")
             return
 
         password = get_password()
