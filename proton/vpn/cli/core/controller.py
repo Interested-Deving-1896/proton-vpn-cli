@@ -45,7 +45,9 @@ from proton.vpn.core.connection import VPNStateSubscriber, VPNConnection, VPNCon
 from proton.vpn.core.session_holder import ClientTypeMetadata
 from proton.vpn.core.settings import Settings
 from proton.vpn.session import ServerList
-from proton.vpn.session.servers.country_codes import country_codes, get_country_code_for_name
+from proton.vpn.session.servers.country_codes import \
+    validate_country_code, \
+    get_country_code_for_name
 from proton.vpn.session.servers.types import LogicalServer
 
 LOGGING_FILENAME = "vpn-cli"
@@ -347,19 +349,13 @@ class Controller:
         vpn_connector = await self._api.get_vpn_connector()
         return vpn_connector
 
-    def _validate_country_code(self, country: str) -> Optional[str]:
-        if country in country_codes:
-            # user provided a valid code
-            return country
-
-        return None
-
     def _get_country_server(self, country: str, server_list: ServerList) -> Optional[LogicalServer]:
         server = None
+        country_code = None
 
         if len(country) == 2:
             # assume the user specified a country code
-            country_code = self._validate_country_code(country)
+            country_code = validate_country_code(country)
             if not country_code:
                 raise CountryCodeError
         else:
