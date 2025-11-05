@@ -1,7 +1,6 @@
 """
 Exceptions raised by the CLI.
 
-
 Copyright (c) 2025 Proton AG
 
 This file is part of Proton VPN.

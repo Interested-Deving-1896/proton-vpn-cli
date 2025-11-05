@@ -1,7 +1,7 @@
 """
-Semver utils.
+Helper for creating a pending async task barrier.
 
-Copyright (c) 2023 Proton AG
+Copyright (c) 2025 Proton AG
 
 This file is part of Proton VPN.
 

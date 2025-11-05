@@ -1,8 +1,8 @@
 
 """
-Semver utils.
+Proton VPN Linux CLI entry point.
 
-Copyright (c) 2023 Proton AG
+Copyright (c) 2025 Proton AG
 
 This file is part of Proton VPN.
 
