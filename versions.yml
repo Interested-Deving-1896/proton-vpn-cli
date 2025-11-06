@@ -1,3 +1,12 @@
+version: 0.1.1rc3
+time: 2025/11/06 16:08
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "fix: Add daemon package dependency"
+---
 version: 0.1.1rc2
 time: 2025/11/05 16:43
 author: Richard Paterson
