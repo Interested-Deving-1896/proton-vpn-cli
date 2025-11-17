@@ -1,3 +1,12 @@
+version: 0.1.2
+time: 2025/11/14 13:47
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "chore: update README"
+---
 version: 0.1.1
 time: 2025/11/06 16:43
 author: Richard Paterson

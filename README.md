@@ -8,20 +8,23 @@ For contribution policy see [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Description
 
-The [Proton VPN](https://protonvpn.com) CLI beta is intended for adventurous Proton VPN users who would like to help drive early development with their feedback. As the CLI is currently in beta, it provides limited access to Proton VPN functionality.
+### Early access release
+
+The official [Proton VPN](https://protonvpn.com) CLI is here. This early access release delivers core VPN functionality now, and we'll build out additional features based on your feedback and priorities.
+
+Current functionality:
+- Connect and disconnect from VPN servers
+- Select servers by country, city, or server ID
+- WireGuard protocol support
+
+Current limitations:
+- No advanced features (NetShield, kill switch, split tunneling, port forwarding)
+- Cannot run alongside the Proton VPN GUI app
+- No server list command (use connection options instead)
+
+We're actively developing additional features. Report issues and request features through https://protonvpn.com/support-form
 
 Have fun on your terminal.
-
-#### Known limitations
-
-The following are a list of limitations in the current CLI beta and are likely to change during development.
-
-The CLI:
-- uses Wireguard only
-- can not be used while the GUI is running
-- does not modify VPN connection settings. Uses an existing settings.json file if it exists or default values otherwise
-- does not provide a server listing
-
 
 
 ### Cloning
@@ -34,7 +37,7 @@ to clone the necessary submodule.
 
 ### Installation
 
-You can get the latest beta release from our [Proton VPN official website](https://protonvpn.com/download-linux).
+You can find the latest beta release and installation instructions on our [Proton VPN official website](https://protonvpn.com/support/linux-cli).
 
 ### Dependencies
 
