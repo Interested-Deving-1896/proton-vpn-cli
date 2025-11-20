@@ -18,7 +18,6 @@ setup(
         "proton-core",
         "proton-vpn-api-core",
         "proton-keyring-linux",
-        "proton-vpn-network-manager",
         "proton-vpn-local-agent",
         "click",
         "dbus-fast"
