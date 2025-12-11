@@ -33,15 +33,18 @@ from proton.vpn.cli.core.run_async import run_async
 from proton.vpn.cli.core.controller import Controller, DEFAULT_CLI_NAME
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 from proton.vpn.session.exceptions import ServerNotFoundError
-from proton.vpn.session.servers.types import LogicalServer
+from proton.vpn.session.servers.types import LogicalServer, ServerFeatureEnum
 
 
 @click.command(
     epilog="""\b
               Examples:
-                  protonvpn connect --country US
-                  protonvpn connect --country "United States"
-                  protonvpn connect --city "New York" """)
+                  protonvpn connect                           Fastest server globally
+                  protonvpn connect --country US              Fastest in United States
+                  protonvpn connect --city "New York"         Fastest in New York
+                  protonvpn connect IT#23                     Connect to server IT#23
+                  protonvpn connect --p2p                     Fastest P2P server
+                  protonvpn connect --country IT --p2p        Fastest P2P server in Italy""")
 @click.pass_context
 @click.argument("server_name", required=False)
 @click.option(
@@ -56,12 +59,22 @@ from proton.vpn.session.servers.types import LogicalServer
     help="""\b
             Connect to fastest server in specified city
             City name (use quotes for multi-word: "New York", "Los Angeles")""")
+@click.option('--p2p', is_flag=True, help="Connect to the fastest P2P-optimized server")
+@click.option("-sc", "--securecore", is_flag=True, help="Connect to the fastest Secure Core server")
+@click.option("--tor", is_flag=True, help="Connect to the fastest Tor server")
+@click.option("--random", is_flag=True, help="Connect to a random available server")
 @run_async
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-locals
 async def connect(
     ctx,
     server_name: Optional[str],
     city: Optional[str],
-    country: Optional[str]
+    country: Optional[str],
+    p2p: bool,
+    securecore: bool,
+    tor: bool,
+    random: bool
 ):
     """Connect to Proton VPN"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
@@ -71,12 +84,19 @@ async def connect(
     controller.set_uncaught_exceptions_to_absorb([CancelledError])
     server = None
     connection_state = None
+    requested_features = _compose_requested_features(p2p, securecore, tor)
 
     # attempt to find a satisfactory server, and connect to it
     try:
-        server = await controller.find_logical_server(server_name, country, city)
+        server = await controller.find_logical_server(
+            server_name,
+            country,
+            city,
+            requested_features,
+            random
+        )
         if not server:
-            print("The selected server is currently unavailable")
+            print("No servers found matching criteria. Try broadening your filters.")
             return
 
         connection_state = await controller.connect(server)
@@ -98,7 +118,14 @@ async def connect(
     except RequiresHigherTierError:
         free_user = controller.user_tier == 0
         if free_user:
-            _display_free_user_limitation(controller, server_name, city, country)
+            _display_free_user_limitation(
+                controller,
+                server_name,
+                city,
+                country,
+                requested_features,
+                random
+            )
 
     if connection_state:
         # notify user of successful connection and server details
@@ -132,11 +159,30 @@ def _get_most_specific_server_location(server: LogicalServer) -> str:
     return server.entry_country_name
 
 
+def _compose_requested_features(
+    p2p: bool,
+    securecore: bool,
+    tor: bool
+) -> ServerFeatureEnum:
+    requested_features: ServerFeatureEnum = 0
+    if p2p:
+        requested_features |= ServerFeatureEnum.P2P
+    if securecore:
+        requested_features |= ServerFeatureEnum.SECURE_CORE
+    if tor:
+        requested_features |= ServerFeatureEnum.TOR
+
+    return requested_features
+
+
+# pylint: disable=too-many-arguments
 def _display_free_user_limitation(
     controller: Controller,
     server_name: Optional[str],
     city: Optional[str],
-    country: Optional[str]
+    country: Optional[str],
+    requested_features: Optional[ServerFeatureEnum],
+    random: bool
 ):
     free_user = controller.user_tier == 0
     if not free_user:
@@ -156,4 +202,27 @@ def _display_free_user_limitation(
         print("Location selection is not available on the free plan. "
               f"Please use '{proton_cli_name} connect' to connect to available free servers "
               "or upgrade to choose your location.")
+        return
+
+    # when specifying a server feature, the user requires a paying tier
+    requested_feature_type = None
+    if requested_features & ServerFeatureEnum.P2P != 0:
+        requested_feature_type = "P2P"
+    elif requested_features & ServerFeatureEnum.SECURE_CORE != 0:
+        requested_feature_type = "Secure Core"
+    elif requested_features & ServerFeatureEnum.TOR != 0:
+        requested_feature_type = "Tor"
+
+    if requested_feature_type:
+        proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
+        print(f"{requested_feature_type} servers are not available on the free plan. "
+              f"Please use '{proton_cli_name} connect' to connect to available free servers "
+              f"or upgrade to to access {requested_feature_type} servers.")
+        return
+
+    # when requested a random server, the user requires a paying tier
+    if random:
+        proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
+        print("Random selection is not available on the free plan. "
+              f"Please use '{proton_cli_name} connect' to connect to available free servers.")
         return

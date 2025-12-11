@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import metadata
 import logging
+import random
 from types import TracebackType
 from typing import Callable, List, Optional, Type, Union
 
@@ -48,7 +49,7 @@ from proton.vpn.session import ServerList
 from proton.vpn.session.servers.country_codes import \
     validate_country_code, \
     get_country_code_for_name
-from proton.vpn.session.servers.types import LogicalServer
+from proton.vpn.session.servers.types import LogicalServer, ServerFeatureEnum
 
 LOGGING_FILENAME = "vpn-cli"
 DEFAULT_CLI_NAME = "protonvpn"
@@ -204,41 +205,77 @@ class Controller:
         """
         return (await self.get_vpn_connector()).is_connection_active
 
+    # pylint: disable=too-many-arguments
     async def find_logical_server(
         self,
         server_name: Optional[str] = None,
         country: Optional[str] = None,
-        city: Optional[str] = None
+        city: Optional[str] = None,
+        features: ServerFeatureEnum = 0,
+        random_server: bool = False
     ) -> Optional[LogicalServer]:
         """
         Finds a server in the serverlist meeting the user's criteria
         :param server_name: The name of the server to connect to.
-        :param country: The country whose fastest server we want to connect to.
-        :param city: The city whose fastest server we want to connect to.
+        :param country: The country whose fastest/random server we want to connect to.
+        :param city: The city whose fastest/random server we want to connect to.
+        :param features: The required features of the fastest/random server we wish to connect to.
+        :param random_server: If true, look for a random (instead of fastest) server
+                       meeting all requirements.
         :return: The fastest logical server meeting the provided constraints.
         """
         if not self._api.is_user_logged_in():
             raise AuthenticationRequiredError
 
         free_user = self.user_tier == 0
-        if free_user and (server_name or country or city):
+        requesting_paying_feature =\
+            (server_name or country or city or features or random_server)
+        if free_user and requesting_paying_feature:
             raise RequiresHigherTierError
 
         logical_server = None
-
         server_list = await self.get_updated_server_list()
+
         # server name takes precedence
         if server_name:
             logical_server = server_list.get_by_name(server_name)
-        # or check if we're looking in a city
-        elif city:
-            logical_server = server_list.get_fastest_in_city(city)
-        # or see if we're looking in a country
-        elif country:
-            logical_server = self._get_country_server(country, server_list)
-        # otherwise just look for the fastest available server
         else:
-            logical_server = server_list.get_fastest()
+            servers = server_list.logicals
+
+            # location filtering
+            # check if we're looking in a city
+            if city:
+                servers = ServerList.get_servers_in_city(servers, city)
+            # or see if we're looking in a country
+            elif country:
+                valid_country_code = self._validate_country_input(country)
+                servers = ServerList.get_servers_in_country_code(servers, valid_country_code)
+
+            # feature filtering
+            features_excluded_by_default =\
+                ServerFeatureEnum.SECURE_CORE | ServerFeatureEnum.TOR
+
+            # don't exclude features that are explicitly requested
+            features_excluded_by_default =\
+                (features_excluded_by_default & features) ^ features_excluded_by_default
+
+            servers = ServerList.get_servers_with_features(
+                servers,
+                request_features=features,
+                exclude_features=features_excluded_by_default
+            )
+
+            # grab available servers
+            servers = ServerList.get_available_servers(servers, self.user_tier)
+
+            # random server or fastest server
+            if random_server:
+                filtered_servers = list(servers)
+                if len(filtered_servers) > 0:
+                    logical_server =\
+                        random.choice(filtered_servers)  # nosec B311 # nosemgrep: gitlab.bandit.B311 # noqa: E501 # pylint: disable=line-too-long
+            else:
+                logical_server = ServerList.get_fastest_server(servers)
 
         return logical_server
 
@@ -349,8 +386,10 @@ class Controller:
         vpn_connector = await self._api.get_vpn_connector()
         return vpn_connector
 
-    def _get_country_server(self, country: str, server_list: ServerList) -> Optional[LogicalServer]:
-        server = None
+    def _validate_country_input(
+            self,
+            country: str,
+    ) -> str:
         country_code = None
 
         if len(country) == 2:
@@ -364,10 +403,7 @@ class Controller:
             if not country_code:
                 raise CountryNameError
 
-        if country_code:
-            server = server_list.get_fastest_in_country(country_code)
-
-        return server
+        return country_code
 
     async def _connect(self, server: LogicalServer):
         vpn_server = (await self.get_vpn_connector()).get_vpn_server(

@@ -76,8 +76,8 @@ class ExceptionHandler:
                 ExceptionHandler.__exception_reporter.report_error(
                     (exc_type, exc_value, exc_traceback)
                 )
-            else:
-                sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
     @staticmethod
     def __is_reportable_exception(exc_type) -> bool:

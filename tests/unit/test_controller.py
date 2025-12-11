@@ -16,9 +16,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-from unittest.mock import AsyncMock, MagicMock, Mock, patch, PropertyMock
+from unittest.mock import AsyncMock, Mock, PropertyMock
 import pytest
-import asyncio
 
 from click.core import Context as ClickContext
 
@@ -29,7 +28,7 @@ from proton.vpn.cli.core.exceptions import \
 from proton.vpn.connection import states
 from proton.vpn.core.api import ProtonVPNAPI, VPNDataRefresher
 from proton.vpn.core.connection import VPNConnector
-from proton.vpn.session.servers.types import LogicalServer
+from proton.vpn.session.servers.types import LogicalServer, ServerFeatureEnum
 
 
 @pytest.mark.asyncio
@@ -70,6 +69,66 @@ async def test_find_logical_server_fails_when_specifying_server_name_as_free_use
     controller = Controller(params_mock, click_ctx_mock, api_mock)
     with pytest.raises(RequiresHigherTierError):
         await controller.find_logical_server(server_name="name")
+
+
+@pytest.mark.asyncio
+async def test_find_logical_server_fails_when_specifying_country_as_free_user():
+    api_mock = Mock()
+    params_mock = Mock()
+    click_ctx_mock = Mock()
+
+    # mock free user tier
+    user_tier_property = PropertyMock(return_value=0)
+    type(api_mock).user_tier = user_tier_property
+
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+    with pytest.raises(RequiresHigherTierError):
+        await controller.find_logical_server(country="FR")
+
+
+@pytest.mark.asyncio
+async def test_find_logical_server_fails_when_specifying_city_as_free_user():
+    api_mock = Mock()
+    params_mock = Mock()
+    click_ctx_mock = Mock()
+
+    # mock free user tier
+    user_tier_property = PropertyMock(return_value=0)
+    type(api_mock).user_tier = user_tier_property
+
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+    with pytest.raises(RequiresHigherTierError):
+        await controller.find_logical_server(city="Milan")
+
+
+@pytest.mark.asyncio
+async def test_find_logical_server_fails_when_requesting_features_as_free_user():
+    api_mock = Mock()
+    params_mock = Mock()
+    click_ctx_mock = Mock()
+
+    # mock free user tier
+    user_tier_property = PropertyMock(return_value=0)
+    type(api_mock).user_tier = user_tier_property
+
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+    with pytest.raises(RequiresHigherTierError):
+        await controller.find_logical_server(features=ServerFeatureEnum.P2P)
+
+
+@pytest.mark.asyncio
+async def test_find_logical_server_fails_when_requesting_random_server_as_free_user():
+    api_mock = Mock()
+    params_mock = Mock()
+    click_ctx_mock = Mock()
+
+    # mock free user tier
+    user_tier_property = PropertyMock(return_value=0)
+    type(api_mock).user_tier = user_tier_property
+
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+    with pytest.raises(RequiresHigherTierError):
+        await controller.find_logical_server(random_server=True)
 
 
 @pytest.mark.asyncio
@@ -133,41 +192,3 @@ async def test_connect_disconnects_when_connection_fails():
     controller = Controller(params_mock, click_ctx_mock, api_mock)
     await controller.connect(server)
     vpn_connector_mock.disconnect.assert_called_once()
-
-
-@pytest.mark.parametrize("server_name, country, city", [
-    (None, None, None),  # fastest
-    (None, "United Kingdom", "London"),  # fastest in city
-    (None, "Brazil", None),  # fastest in country
-    ("UK#42", "United Kingdom", "London")  # server with server name
-])
-@pytest.mark.asyncio
-async def test_find_logical_server_respects_highest_priority_constraint(
-    server_name, country, city
-):
-    api_mock = AsyncMock()
-    params_mock = Mock()
-    click_ctx_mock = Mock()
-    vpn_connector_mock = Mock()
-
-    api_mock.get_vpn_connector.return_value = vpn_connector_mock
-
-    # Avoid awaitable errors
-    # awaitable
-    vpn_connector_mock.connect = AsyncMock()
-    vpn_connector_mock.disconnect = AsyncMock()
-    # not awaitable
-    api_mock.refresher.get_up_to_date_server_list.return_value = MagicMock()
-    api_mock.is_user_logged_in = MagicMock()
-
-    controller = Controller(params_mock, click_ctx_mock, api_mock)
-    await controller.find_logical_server(server_name, country, city)
-    server_list = await controller.get_updated_server_list()
-    if server_name:
-        server_list.get_by_name.assert_called_once()
-    elif city:
-        server_list.get_fastest_in_city.assert_called_once()
-    elif country:
-        server_list.get_fastest_in_country.assert_called_once()
-    else:
-        server_list.get_fastest.assert_called_once()
