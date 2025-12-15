@@ -192,3 +192,15 @@ async def test_connect_disconnects_when_connection_fails():
     controller = Controller(params_mock, click_ctx_mock, api_mock)
     await controller.connect(server)
     vpn_connector_mock.disconnect.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_all_countries_raises_authentication_required_exception_when_user_is_not_logged_in():
+    api_mock = AsyncMock(spec=ProtonVPNAPI)
+    api_mock.is_user_logged_in.return_value = False
+    params_mock = Mock(spec=Params)
+    click_ctx_mock = Mock(spec=ClickContext)
+    controller = Controller(params_mock, click_ctx_mock, api_mock)
+
+    with pytest.raises(AuthenticationRequiredError):
+        await controller.get_all_countries()

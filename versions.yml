@@ -1,3 +1,12 @@
+version: 0.1.4rc2
+time: 2025/12/11 16:46
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: list available countries"
+---
 version: 0.1.4rc1
 time: 2025/12/10 16:26
 author: Richard Paterson

@@ -279,6 +279,14 @@ class Controller:
 
         return logical_server
 
+    async def get_all_countries(self):
+        """Returns a list of countries."""
+        if not self._api.is_user_logged_in():
+            raise AuthenticationRequiredError
+
+        server_list = await self.get_updated_server_list()
+        return server_list.group_by_country()
+
     async def connect(
         self,
         server: LogicalServer

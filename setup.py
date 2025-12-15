@@ -20,7 +20,8 @@ setup(
         "proton-keyring-linux",
         "proton-vpn-local-agent",
         "click",
-        "dbus-fast"
+        "dbus-fast",
+        "tabulate"
     ],
     extras_require={
         "development": [

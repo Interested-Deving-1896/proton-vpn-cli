@@ -21,6 +21,7 @@ BuildRoot: %{{_tmppath}}/%{{pep_625_name}}-%{{version}}-%{{release}}-buildroot
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
 BuildRequires: python3-dbus-fast
+BuildRequires: python3-tabulate
 BuildRequires: python3-proton-vpn-api-core >= 4.14.2
 BuildRequires: python3-proton-keyring-linux >= 0.1.0
 
@@ -29,6 +30,7 @@ Requires: python3-proton-keyring-linux >= 0.1.0
 Requires: python3-packaging
 Requires: python3-dbus-fast
 Requires: proton-vpn-daemon
+Requires: python3-tabulate
 
 %{{?python_disable_dependency_generator}}
 
