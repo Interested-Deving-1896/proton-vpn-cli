@@ -248,7 +248,7 @@ class Controller:
                 servers = ServerList.get_servers_in_city(servers, city)
             # or see if we're looking in a country
             elif country:
-                valid_country_code = self._validate_country_input(country)
+                valid_country_code = self.validate_country_input(country)
                 servers = ServerList.get_servers_in_country_code(servers, valid_country_code)
 
             # feature filtering
@@ -394,10 +394,23 @@ class Controller:
         vpn_connector = await self._api.get_vpn_connector()
         return vpn_connector
 
-    def _validate_country_input(
+    def validate_country_input(
             self,
             country: str,
     ) -> str:
+        """Ensures that the passed country code ISO or country name is
+        a valid value.
+
+        Args:
+            country (str): country ISO code or country name in plain english.
+
+        Raises:
+            CountryCodeError: if the passed country code does not exist
+            CountryNameError: if the passed country name does not exist
+
+        Returns:
+            str: returns country code for a valid country
+        """
         country_code = None
 
         if len(country) == 2:
