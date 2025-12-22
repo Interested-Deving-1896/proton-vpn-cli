@@ -1,29 +1,13 @@
-version: 0.1.4rc3
-time: 2025/12/12 13:46
-author: Alexandru Cheltuitor
-email: alexandru.cheltuitor@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: list cities for available countries"
----
-version: 0.1.4rc2
-time: 2025/12/11 16:46
-author: Alexandru Cheltuitor
-email: alexandru.cheltuitor@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: list available countries"
----
-version: 0.1.4rc1
+version: 0.1.4
 time: 2025/12/10 16:26
-author: Richard Paterson
-email: richard.paterson@proton.ch
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
 urgency: low
 stability: unstable
 description:
-- "feat: Add server connection filtering"
+- "feat: Add server connection filtering (Richard Paterson)"
+- "feat: list available countries (Alexandru Cheltuitor)"
+- "feat: list cities for available countries (Alexandru Cheltuitor)"
 ---
 version: 0.1.3
 time: 2025/11/20 14:09
