@@ -56,6 +56,17 @@ DEFAULT_CLI_NAME = "protonvpn"
 
 
 @dataclass
+class Feature:
+    """Used when setting and saving features.
+    """
+    command: str
+    human_friendly_name: str
+    setting_path: str
+    available_on_free_tier: bool = False
+    requires_restart: bool = False
+
+
+@dataclass
 class Params:
     """The parameters for constructing the Controller"""
     verbose: str = False
@@ -114,7 +125,7 @@ async def _wait_for_event(  # pylint: disable=R0913
         raise VPNConnectionError
 
 
-class Controller:
+class Controller:  # pylint: disable=too-many-public-methods
     """
     The application business logic is in this class. The is the core of the
     application.
@@ -188,9 +199,52 @@ class Controller:
         """Returns the Proton VPN tier"""
         return self._api.user_tier
 
+    @property
+    def user_on_free_tier(self) -> bool:
+        """Returns if the current user is on free tier or not.
+        """
+        return self.user_tier == 0
+
     async def get_settings(self) -> Settings:
         """Returns general settings."""
+        if not self.is_logged_in:
+            raise AuthenticationRequiredError
         return await self._api.load_settings()
+
+    async def save_feature(self, feature: Feature, value: bool):
+        """Ensures that the feature is stored to disk only
+        if the subscription tier allows is.
+
+        Args:
+            settings (Settings): settings object with the modified feature
+            feature (Feature): feature object that is used for the check
+
+        Raises:
+            AuthenticationRequiredError: if user is not logged in
+            RequiresHigherTierError: if feature requires a higher plan
+        """
+        settings = await self.get_settings()
+
+        if not feature.available_on_free_tier and self.user_on_free_tier:
+            raise RequiresHigherTierError
+
+        settings = self._set_settings_by_path(settings, feature.setting_path, value)
+
+        await self.save_settings(settings)
+
+    async def save_settings(self, settings: Settings):
+        """Returns general settings."""
+        await self.get_vpn_connector()
+        await self._api.save_settings(settings)
+
+    def _set_settings_by_path(self, settings: Settings, path: str, value: bool):
+        parts = path.split(".")
+        cur = settings
+        for part in parts[:-1]:
+            cur = getattr(cur, part)
+
+        setattr(cur, parts[-1], value)
+        return settings
 
     async def get_current_connection(self) -> Optional[VPNConnection]:
         """Returns the current VPN connection or None if there isn't one."""

@@ -1,3 +1,12 @@
+version: 0.1.5rc1
+time: 2025/12/22 12:46
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: add toggle-able features"
+---
 version: 0.1.4
 time: 2025/12/10 16:26
 author: Alexandru Cheltuitor

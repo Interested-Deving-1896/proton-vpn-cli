@@ -37,6 +37,8 @@ async def signin(ctx, username: str):
                            getpass.getpass,
                            lambda: getpass.getpass("2FA Token: "))
 
+SIGNIN_COMMAND = signin.name
+
 
 @click.command()
 @click.pass_context
