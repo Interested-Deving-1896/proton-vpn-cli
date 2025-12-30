@@ -207,7 +207,7 @@ async def test_get_all_countries_raises_authentication_required_exception_when_u
 
 
 @pytest.mark.asyncio
-async def test_save_feature_when_not_signed_in_raises_exception():
+async def test_save_config_when_not_signed_in_raises_exception():
     api_mock = AsyncMock(spec=ProtonVPNAPI)
     api_mock.is_user_logged_in.return_value = False
     params_mock = Mock(spec=Params)
@@ -215,11 +215,11 @@ async def test_save_feature_when_not_signed_in_raises_exception():
     controller = Controller(params_mock, click_ctx_mock, api_mock)
 
     with pytest.raises(AuthenticationRequiredError):
-        await controller.save_feature(Mock(), Mock())
+        await controller.save_config(Mock(), Mock())
 
 
 @pytest.mark.asyncio
-async def test_save_feature_when_feature_requires_higher_tier_raises_exception():
+async def test_save_config_when_feature_requires_higher_tier_raises_exception():
     api_mock = AsyncMock(spec=ProtonVPNAPI)
     api_mock.is_user_logged_in.return_value = True
     api_mock.user_tier = 0  # Free tier
@@ -230,4 +230,4 @@ async def test_save_feature_when_feature_requires_higher_tier_raises_exception()
     feature_mock.available_on_free_tier = False
 
     with pytest.raises(RequiresHigherTierError):
-        await controller.save_feature(feature_mock, Mock())
+        await controller.save_config(feature_mock, Mock())

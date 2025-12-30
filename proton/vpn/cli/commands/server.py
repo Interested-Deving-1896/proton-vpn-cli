@@ -34,17 +34,19 @@ from proton.vpn.cli.core.controller import Controller, DEFAULT_CLI_NAME
 from proton.vpn.cli.core.wait_for_current_tasks import wait_for_current_tasks
 from proton.vpn.session.exceptions import ServerNotFoundError
 from proton.vpn.session.servers.types import LogicalServer, ServerFeatureEnum
+from proton.vpn.cli.commands.account import SIGNIN_COMMAND
 
 
-@click.command(
-    epilog="""\b
-              Examples:
-                  protonvpn connect                           Fastest server globally
-                  protonvpn connect --country US              Fastest in United States
-                  protonvpn connect --city "New York"         Fastest in New York
-                  protonvpn connect IT#23                     Connect to server IT#23
-                  protonvpn connect --p2p                     Fastest P2P server
-                  protonvpn connect --country IT --p2p        Fastest P2P server in Italy""")
+class FailedConnection(click.ClickException):
+    """When attempting to establish a connection, it fails
+    """
+
+
+def _print_usage_error(msg: str):
+    raise click.UsageError(msg)
+
+
+@click.command()
 @click.pass_context
 @click.argument("server_name", required=False)
 @click.option(
@@ -96,25 +98,30 @@ async def connect(
             random
         )
         if not server:
-            print("No servers found matching criteria. Try broadening your filters.")
+            _print_usage_error("No servers found matching criteria. Try broadening your filters.")
             return
 
         connection_state = await controller.connect(server)
 
     except AuthenticationRequiredError:
-        print("Authentication required. Please sign in before connecting.")
-    except ServerNotFoundError as exc:
+        _print_usage_error(
+            "Authentication required."
+            f"Please sign in with '{controller.program_name} {SIGNIN_COMMAND}' before connecting."
+        )
+    except ServerNotFoundError as excp:
         if server_name:
-            print(f"Invalid server ID '{server_name}'. "
-                  "Please use a valid server ID from the server list.")
+            msg = f"Invalid server ID '{server_name}'. " \
+                  "Please use a valid server ID from the server list."
         elif city:
-            print(f"City '{city}' not found or no servers available.")
+            msg = f"City '{city}' not found or no servers available."
         else:
-            print(str(exc))
+            msg = str(excp)
+
+        _print_usage_error(msg)
     except CountryCodeError:
-        print(f"Invalid country code '{country}'. Please use a valid country code.")
+        _print_usage_error(f"Invalid country code '{country}'. Please use a valid country code.")
     except CountryNameError:
-        print(f"Invalid country name '{country}'. Please use a valid country name.")
+        _print_usage_error(f"Invalid country name '{country}'. Please use a valid country name.")
     except RequiresHigherTierError:
         free_user = controller.user_tier == 0
         if free_user:
@@ -131,13 +138,19 @@ async def connect(
         # notify user of successful connection and server details
         current_connection = connection_state.context.connection
         server_ip = connection_state.context.event.context.connection_details.server_ipv4
-        print(f"Connected to {current_connection.server_name} "
-              f"in {_get_most_specific_server_location(server)}. "
-              f"Your new IP address is {server_ip}.")
+        click.echo(
+            f"Connected to {current_connection.server_name} "
+            f"in {_get_most_specific_server_location(server)}. "
+            f"Your new IP address is {server_ip}."
+        )
     elif server:
         # we found a server but the connection failed
-        print("Connection failed. "
-              "Try connecting to a different server or check your network settings.")
+        raise FailedConnection(
+            "Connection failed. "
+            "Try connecting to a different server or check your network settings."
+        )
+
+CONNECT_COMMAND = connect.name
 
 
 @click.command()
@@ -191,17 +204,21 @@ def _display_free_user_limitation(
     # when specifying a server name, the user requires a paying tier
     if server_name:
         proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-        print(f"Server selection by ID is not available on the free plan."
-              f" Please use '{proton_cli_name} connect' to connect to available free servers"
-              " or upgrade to access all servers.")
+        _print_usage_error(
+            f"Server selection by ID is not available on the free plan."
+            f" Please use '{proton_cli_name} {CONNECT_COMMAND}' to connect "
+            "to available free servers or upgrade to access all servers."
+        )
         return
 
     # when specifying a country or city, the user requires a paying tier
     if country or city:
         proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-        print("Location selection is not available on the free plan. "
-              f"Please use '{proton_cli_name} connect' to connect to available free servers "
-              "or upgrade to choose your location.")
+        _print_usage_error(
+            "Location selection is not available on the free plan. "
+            f"Please use '{proton_cli_name} {CONNECT_COMMAND}' to connect"
+            "to available free servers or upgrade to choose your location."
+        )
         return
 
     # when specifying a server feature, the user requires a paying tier
@@ -215,14 +232,20 @@ def _display_free_user_limitation(
 
     if requested_feature_type:
         proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-        print(f"{requested_feature_type} servers are not available on the free plan. "
-              f"Please use '{proton_cli_name} connect' to connect to available free servers "
-              f"or upgrade to to access {requested_feature_type} servers.")
+        _print_usage_error(
+            f"{requested_feature_type} servers are not available on the free plan. "
+            f"Please use '{proton_cli_name} {CONNECT_COMMAND}' to connect "
+            "to available free servers "
+            f"or upgrade to to access {requested_feature_type} servers."
+        )
         return
 
     # when requested a random server, the user requires a paying tier
     if random:
         proton_cli_name = controller.program_name or DEFAULT_CLI_NAME
-        print("Random selection is not available on the free plan. "
-              f"Please use '{proton_cli_name} connect' to connect to available free servers.")
+        _print_usage_error(
+            "Random selection is not available on the free plan. "
+            f"Please use '{proton_cli_name} {CONNECT_COMMAND}' "
+            "to connect to available free servers."
+        )
         return

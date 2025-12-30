@@ -32,13 +32,17 @@ from packaging.version import Version
 import sentry_sdk
 
 from proton.session.exceptions import ProtonAPIAuthenticationNeeded
+from proton.vpn.core.settings.custom_dns import CustomDNSEntry, CustomDNS
 from proton.vpn import logging as ProtonLogging
 from proton.vpn.cli.core.exception_handler import ExceptionHandler
 from proton.vpn.cli.core.exceptions import \
     AuthenticationRequiredError, \
     CountryCodeError, \
     CountryNameError, \
-    RequiresHigherTierError
+    RequiresHigherTierError, \
+    InvalidDNS, \
+    VPNConnectionError, \
+    InvalidServer
 from proton.vpn.connection import states
 from proton.vpn.connection.enum import ConnectionStateEnum
 from proton.vpn.core.api import ProtonVPNAPI
@@ -62,6 +66,7 @@ class Feature:
     command: str
     human_friendly_name: str
     setting_path: str
+    short_help: str = None
     available_on_free_tier: bool = False
     requires_restart: bool = False
 
@@ -70,12 +75,6 @@ class Feature:
 class Params:
     """The parameters for constructing the Controller"""
     verbose: str = False
-
-
-class VPNConnectionError(Exception):
-    """
-    Error establishing a VPN server connection
-    """
 
 
 @asynccontextmanager
@@ -211,7 +210,11 @@ class Controller:  # pylint: disable=too-many-public-methods
             raise AuthenticationRequiredError
         return await self._api.load_settings()
 
-    async def save_feature(self, feature: Feature, value: bool):
+    async def save_config(
+        self,
+        feature: Feature,
+        value: Union[int, bool, CustomDNS]
+    ):
         """Ensures that the feature is stored to disk only
         if the subscription tier allows is.
 
@@ -234,17 +237,69 @@ class Controller:  # pylint: disable=too-many-public-methods
 
     async def save_settings(self, settings: Settings):
         """Returns general settings."""
+        # We need to call get_vpn_connector() because the API
+        # applies settings to current connection, even though
+        # currently it seems like it's not working.
         await self.get_vpn_connector()
         await self._api.save_settings(settings)
 
-    def _set_settings_by_path(self, settings: Settings, path: str, value: bool):
-        parts = path.split(".")
-        cur = settings
-        for part in parts[:-1]:
-            cur = getattr(cur, part)
+    async def ensure_currently_connected_server_is_p2p_compatible(self):
+        """Check if the server that the user is currently connected to
+        support P2P feature. If not it raises exception.
 
-        setattr(cur, parts[-1], value)
+        Raises:
+            InvalidServer: if the server does not support P2P
+        """
+        server_name = (await self.get_vpn_connector()).current_connection.server_name
+        logical_server = await self.find_logical_server(
+            server_name=server_name, features=ServerFeatureEnum.P2P
+        )
+        if not logical_server:
+            raise InvalidServer(server_name)
+
+    def _set_settings_by_path(
+        self, settings: Settings, path: str,
+        value: Union[int, bool, CustomDNS]
+    ):
+        parts = path.split(".")
+        current = settings
+        for part in parts[:-1]:
+            current = getattr(current, part)
+
+        setattr(current, parts[-1], value)
         return settings
+
+    def parse_dns_ips(self, dns_list: list[str]) -> list[CustomDNSEntry]:
+        """Parses a CSV string of DNS IPs into a list of strings.
+
+        Args:
+            dns_csv (str): CSV string of DNS IPs.
+
+        Returns:
+            List[str]: List of DNS IPs.
+
+        Raises:
+            ValueError: If any of the DNS IPs are invalid.
+        """
+        parsed_dns_list = []
+        for dns in dns_list:
+            try:
+                parsed_dns_list.append(CustomDNSEntry.new_from_string(dns))
+            except ValueError as excp:
+                raise InvalidDNS(dns, excp) from excp
+        return parsed_dns_list
+
+    def to_custom_dns(self, state: bool, dns_ips: list[CustomDNSEntry]) -> CustomDNS:
+        """Convert to custom dns setting object.
+
+        Args:
+            state (bool): whether is enabled or disabled
+            dns_ips (list[CustomDNSEntry]): list of IPs
+
+        Returns:
+            CustomDNS: created object
+        """
+        return CustomDNS(state, dns_ips)
 
     async def get_current_connection(self) -> Optional[VPNConnection]:
         """Returns the current VPN connection or None if there isn't one."""

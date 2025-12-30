@@ -20,6 +20,12 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+class VPNConnectionError(Exception):
+    """
+    Error establishing a VPN server connection
+    """
+
+
 class CountryCodeError(Exception):
     """
     Error identifying a country by code
@@ -42,3 +48,17 @@ class RequiresHigherTierError(Exception):
     """
     Requested feature that requires a higher tier
     """
+
+
+class InvalidServer(Exception):
+    """Whenever a selected or connected server does not meet the requirements
+    for a certain feature
+    """
+
+
+class InvalidDNS(Exception):
+    """Raised when user provides invalid DNS value
+    """
+    def __init__(self, dns: str, message: str):
+        self.dns = dns
+        self.message = message

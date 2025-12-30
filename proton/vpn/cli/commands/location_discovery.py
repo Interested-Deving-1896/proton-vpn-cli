@@ -25,6 +25,7 @@ from proton.vpn.cli.core.controller import Controller
 from proton.vpn.session.servers.types import ServerFeatureEnum
 from proton.vpn.cli.core.exceptions import AuthenticationRequiredError, \
     CountryCodeError, CountryNameError
+from proton.vpn.cli.commands.account import SIGNIN_COMMAND
 
 
 FEATURES_TO_DISPLAY = {
@@ -32,6 +33,10 @@ FEATURES_TO_DISPLAY = {
     ServerFeatureEnum.SECURE_CORE: "Secure Core",
     ServerFeatureEnum.TOR: "Tor",
 }
+
+
+def _print_usage_error(msg: str):
+    raise click.UsageError(msg)
 
 
 @click.command()
@@ -45,8 +50,10 @@ async def countries(ctx, controller: Controller = None):
     try:
         all_countries = await controller.get_all_countries()
     except AuthenticationRequiredError:
-        print("Authentication required to view complete country list. "
-              "Please sign in with 'protonvpn signin'.")
+        _print_usage_error(
+            "Authentication required to view complete country list. "
+            f"Please sign in with '{controller.program_name} {SIGNIN_COMMAND}'"
+        )
         return
 
     table = tabulate(
@@ -57,6 +64,8 @@ async def countries(ctx, controller: Controller = None):
         numalign="right",
     )
     click.echo_via_pager(table)
+
+COUNTRIES_COMMAND = countries.name
 
 
 @click.command(
@@ -79,27 +88,29 @@ async def cities(ctx, country_input: str):
     try:
         all_countries = await controller.get_all_countries()
     except AuthenticationRequiredError:
-        print("Authentication required to view complete country list. "
-              "Please sign in with 'protonvpn signin'.")
-        return
+        _print_usage_error(
+            "Authentication required to view cities. "
+            f"Please sign in with '{controller.program_name} {SIGNIN_COMMAND}'"
+        )
 
     try:
         country_code = controller.validate_country_input(country_input)
     except CountryCodeError:
-        print(f"Invalid country code '{country_input}'. Please use a valid country code.")
-        return
+        _print_usage_error(
+            f"Invalid country code '{country_input}'. Please use a valid country code."
+        )
     except CountryNameError:
-        print(f"Invalid country name '{country_input}'. Please use a valid country name.")
-        return
+        _print_usage_error(
+            f"Invalid country name '{country_input}'. Please use a valid country name."
+        )
 
     country = list(filter(lambda country: country.code == country_code.lower(), all_countries))
 
     if not country:
-        print(
+        _print_usage_error(
             f"Country '{country_input}' not found. "
-            "Use 'protonvpn countries' to see available options."
+            f"Use '{controller.program_name} {COUNTRIES_COMMAND}' to see available options."
         )
-        return
 
     country = country.pop()
     table_data = []
@@ -122,5 +133,4 @@ async def cities(ctx, country_input: str):
         numalign="right",
     )
 
-    print(f"\nCities in {country.name}:\n")
-    print(table, "\n")
+    click.echo(f"\nCities in {country.name}:\n{table}\n")
