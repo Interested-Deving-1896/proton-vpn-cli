@@ -29,6 +29,7 @@ from proton.vpn.connection import states
 from proton.vpn.core.api import ProtonVPNAPI, VPNDataRefresher
 from proton.vpn.core.connection import VPNConnector
 from proton.vpn.session.servers.types import LogicalServer, ServerFeatureEnum
+from proton.vpn.session import ServerList
 
 
 @pytest.mark.asyncio

@@ -50,12 +50,6 @@ class RequiresHigherTierError(Exception):
     """
 
 
-class InvalidServer(Exception):
-    """Whenever a selected or connected server does not meet the requirements
-    for a certain feature
-    """
-
-
 class InvalidDNS(Exception):
     """Raised when user provides invalid DNS value
     """

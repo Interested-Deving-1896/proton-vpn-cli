@@ -41,8 +41,7 @@ from proton.vpn.cli.core.exceptions import \
     CountryNameError, \
     RequiresHigherTierError, \
     InvalidDNS, \
-    VPNConnectionError, \
-    InvalidServer
+    VPNConnectionError
 from proton.vpn.connection import states
 from proton.vpn.connection.enum import ConnectionStateEnum
 from proton.vpn.core.api import ProtonVPNAPI
@@ -154,7 +153,10 @@ class Controller:  # pylint: disable=too-many-public-methods
     async def create(params: Params, click_ctx: ClickContext):
         """Preferred method to get an instance of Controller."""
         controller = Controller(params, click_ctx)
-        await controller.get_settings()  # load settings
+        # Ensure controller always has settings loaded,
+        # even if only using free user defaults prior to authentication.
+        # This allows crash reporting to work prior to sign in.
+        await controller.get_settings()
         return controller
 
     def set_uncaught_exceptions_to_absorb(self, exceptions: List[BaseException]):
@@ -206,8 +208,6 @@ class Controller:  # pylint: disable=too-many-public-methods
 
     async def get_settings(self) -> Settings:
         """Returns general settings."""
-        if not self.is_logged_in:
-            raise AuthenticationRequiredError
         return await self._api.load_settings()
 
     async def save_config(
@@ -226,6 +226,9 @@ class Controller:  # pylint: disable=too-many-public-methods
             AuthenticationRequiredError: if user is not logged in
             RequiresHigherTierError: if feature requires a higher plan
         """
+        if not self.is_logged_in:
+            raise AuthenticationRequiredError
+
         settings = await self.get_settings()
 
         if not feature.available_on_free_tier and self.user_on_free_tier:
@@ -242,20 +245,6 @@ class Controller:  # pylint: disable=too-many-public-methods
         # currently it seems like it's not working.
         await self.get_vpn_connector()
         await self._api.save_settings(settings)
-
-    async def ensure_currently_connected_server_is_p2p_compatible(self):
-        """Check if the server that the user is currently connected to
-        support P2P feature. If not it raises exception.
-
-        Raises:
-            InvalidServer: if the server does not support P2P
-        """
-        server_name = (await self.get_vpn_connector()).current_connection.server_name
-        logical_server = await self.find_logical_server(
-            server_name=server_name, features=ServerFeatureEnum.P2P
-        )
-        if not logical_server:
-            raise InvalidServer(server_name)
 
     def _set_settings_by_path(
         self, settings: Settings, path: str,
