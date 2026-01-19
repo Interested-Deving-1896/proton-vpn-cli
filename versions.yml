@@ -1,29 +1,13 @@
-version: 0.1.5rc3
+version: 0.1.5
 time: 2026/01/06 14:20
-author: Alexandru Cheltuitor
-email: alexandru.cheltuitor@proton.ch
+author: Elena Svilpe
+email: elena.svilpe@proton.ch
 urgency: low
 stability: unstable
 description:
-- "fix: multiple bugfixes"
----
-version: 0.1.5rc2
-time: 2025/12/30 13:40
-author: Alexandru Cheltuitor
-email: alexandru.cheltuitor@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: add complex features (kill switch, netshield and custom dns)"
----
-version: 0.1.5rc1
-time: 2025/12/22 12:46
-author: Alexandru Cheltuitor
-email: alexandru.cheltuitor@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: add toggle-able features"
+- "fix: multiple bugfixes (Alexandru Cheltuitor)"
+- "feat: add complex features (kill switch, netshield and custom dns) (Alexandru Cheltuitor)"
+- "feat: add toggle-able features (Alexandru Cheltuitor)"
 ---
 version: 0.1.4
 time: 2025/12/10 16:26
