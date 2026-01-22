@@ -166,6 +166,10 @@ async def disconnect(ctx):
 
 
 def _get_most_specific_server_location(server: LogicalServer) -> str:
+    has_secure_core = ServerFeatureEnum.SECURE_CORE in server.features
+    if has_secure_core and server.city:
+        return f"{server.city}, via {server.entry_country_name}"
+
     if server.city:
         return f"{server.city}, {server.entry_country_name}"
 
