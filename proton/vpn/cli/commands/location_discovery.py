@@ -18,6 +18,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+import sys
+import os
+
 import click
 from tabulate import tabulate
 from proton.vpn.cli.core.run_async import run_async
@@ -68,20 +71,27 @@ async def countries(ctx, controller: Controller = None):
 COUNTRIES_COMMAND = countries.name
 
 
-@click.command(
-    epilog="""\b
-              Examples:
-                  protonvpn cities --country PT               Display cities in Portugal
-                  protonvpn cities --country US               Display cities in United States""")
-@click.pass_context
-@click.option(
-    "--country", "country_input",
-    required=True,
-    help="""\b
-            Display servers in specified country.
-            Country code (US, GB, DE) or full name ("United States")""")
+@click.group()
 @run_async
-async def cities(ctx, country_input: str):
+async def cities():
+    """City discovery commands"""
+
+
+CITIES_LIST_COMMAND = "list"
+PROGRAM_NAME = os.path.basename(sys.argv[0])
+
+
+@cities.command(
+    name=CITIES_LIST_COMMAND,
+    epilog=f"""\b
+    Examples:
+        {PROGRAM_NAME} {cities.name} {CITIES_LIST_COMMAND} PT     Display cities in Portugal
+        {PROGRAM_NAME} {cities.name} {CITIES_LIST_COMMAND} US     Display cities in United States"""
+)
+@click.argument("country_input", required=True)
+@click.pass_context
+@run_async
+async def list_cities_in_country(ctx, country_input: str):
     """Display cities within a country"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
 
