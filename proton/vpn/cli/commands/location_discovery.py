@@ -42,10 +42,19 @@ def _print_usage_error(msg: str):
     raise click.UsageError(msg)
 
 
-@click.command()
+@click.group()
+@run_async
+async def countries():
+    """Discover available countries"""
+
+
+COUNTRIES_LIST_COMMAND = "list"
+
+
+@countries.command(name=COUNTRIES_LIST_COMMAND)
 @click.pass_context
 @run_async
-async def countries(ctx, controller: Controller = None):
+async def list_countries(ctx, controller: Controller = None):
     """Display all available countries."""
     if not controller:
         controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
@@ -66,7 +75,7 @@ async def countries(ctx, controller: Controller = None):
         stralign="left",
         numalign="right",
     )
-    click.echo_via_pager(table)
+    click.echo(table)
 
 COUNTRIES_COMMAND = countries.name
 
@@ -74,7 +83,7 @@ COUNTRIES_COMMAND = countries.name
 @click.group()
 @run_async
 async def cities():
-    """City discovery commands"""
+    """Discover available cities"""
 
 
 CITIES_LIST_COMMAND = "list"

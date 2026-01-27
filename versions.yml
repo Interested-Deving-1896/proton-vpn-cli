@@ -1,3 +1,12 @@
+version: 0.1.7rc2
+time: 2026/01/26 15:12
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: reformat countries listing command"
+---
 version: 0.1.7rc1
 time: 2026/01/26 11:10
 author: Richard Paterson
