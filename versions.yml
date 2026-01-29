@@ -1,3 +1,12 @@
+version: 0.1.7rc3
+time: 2026/01/29 11:42
+author: Elena Svilpe
+email: elena.svilpe@proton.ch
+urgency: low
+stability: unstable
+description:
+- "fix: recover from manually deleted cache"
+---
 version: 0.1.7rc2
 time: 2026/01/26 15:12
 author: Richard Paterson

@@ -482,7 +482,9 @@ class Controller:  # pylint: disable=too-many-public-methods
     async def get_updated_server_list(self) -> ServerList:
         """Returns an always-up-to-date server list."""
         cached_server_list = self._api.server_list
-        if cached_server_list.expired or cached_server_list.loads_expired:
+        if (cached_server_list is None
+                or cached_server_list.expired
+                or cached_server_list.loads_expired):
             print("Server list is outdated, updating... This may take a moment.")
 
         return await self._api.refresher.get_up_to_date_server_list()
