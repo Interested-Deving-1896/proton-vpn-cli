@@ -48,6 +48,8 @@ async def signout(ctx):
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
     await controller.logout()
 
+SIGNOUT_COMMAND = signout.name
+
 
 @click.command()
 @click.pass_context

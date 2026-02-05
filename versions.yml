@@ -1,3 +1,12 @@
+version: 0.1.7rc4
+time: 2026/01/30 09:49
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: add config listing command"
+---
 version: 0.1.7rc3
 time: 2026/01/29 11:42
 author: Elena Svilpe

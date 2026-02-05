@@ -60,12 +60,8 @@ DEFAULT_CLI_NAME = "protonvpn"
 
 @dataclass
 class Feature:
-    """Used when setting and saving features.
-    """
-    command: str
-    human_friendly_name: str
-    setting_path: str
-    short_help: str = None
+    """Used when setting and saving features."""
+    setting_path: str = None
     available_on_free_tier: bool = False
     requires_restart: bool = False
 
@@ -210,17 +206,17 @@ class Controller:  # pylint: disable=too-many-public-methods
         """Returns general settings."""
         return await self._api.load_settings()
 
-    async def save_config(
+    async def save_feature_setting(
         self,
         feature: Feature,
         value: Union[int, bool, CustomDNS]
     ):
         """Ensures that the feature is stored to disk only
-        if the subscription tier allows is.
+        if the subscription tier allows it.
 
         Args:
-            settings (Settings): settings object with the modified feature
-            feature (Feature): feature object that is used for the check
+            feature (Feature): feature whose setting will be modified
+            value: value to set for the given feature
 
         Raises:
             AuthenticationRequiredError: if user is not logged in
@@ -238,6 +234,25 @@ class Controller:  # pylint: disable=too-many-public-methods
 
         await self.save_settings(settings)
 
+    async def get_feature_setting(
+        self,
+        feature: Feature
+    ) -> Union[int, bool, CustomDNS]:
+        """Retrieves the current setting for the requested feature.
+
+        Args:
+            feature (Feature): feature whose setting will be returned
+
+        Raises:
+            AuthenticationRequiredError: if user is not logged in
+        """
+        if not self.is_logged_in:
+            raise AuthenticationRequiredError
+
+        settings = await self.get_settings()
+
+        return self._get_settings_by_path(settings, feature.setting_path)
+
     async def save_settings(self, settings: Settings):
         """Returns general settings."""
         # We need to call get_vpn_connector() because the API
@@ -247,9 +262,11 @@ class Controller:  # pylint: disable=too-many-public-methods
         await self._api.save_settings(settings)
 
     def _set_settings_by_path(
-        self, settings: Settings, path: str,
+        self,
+        settings: Settings,
+        path: str,
         value: Union[int, bool, CustomDNS]
-    ):
+    ) -> Settings:
         parts = path.split(".")
         current = settings
         for part in parts[:-1]:
@@ -257,6 +274,18 @@ class Controller:  # pylint: disable=too-many-public-methods
 
         setattr(current, parts[-1], value)
         return settings
+
+    def _get_settings_by_path(
+        self,
+        settings: Settings,
+        path: str
+    ) -> Union[int, bool, CustomDNS]:
+        parts = path.split(".")
+        current = settings
+        for part in parts[:-1]:
+            current = getattr(current, part)
+
+        return getattr(current, parts[-1])
 
     def parse_dns_ips(self, dns_list: list[str]) -> list[CustomDNSEntry]:
         """Parses a CSV string of DNS IPs into a list of strings.

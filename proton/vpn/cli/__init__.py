@@ -32,7 +32,7 @@ from dbus_fast import BusType, Message, MessageType
 from proton.vpn.cli.commands.account import signin, signout, info
 from proton.vpn.cli.commands.server import connect, disconnect
 from proton.vpn.cli.commands.location_discovery import countries, cities
-from proton.vpn.cli.commands.set import config
+from proton.vpn.cli.commands.settings import config
 from proton.vpn.cli.core.controller import Params
 
 try:
@@ -69,7 +69,7 @@ async def _vpn_gui_running() -> bool:
     return GTK_APP_ID in session_bus_names
 
 
-_CLICK_CONTEXT_SETTINGS = {"help_option_names": ['-h', '--help']}
+_CLICK_CONTEXT_SETTINGS = {"help_option_names": ['--help', '-h']}
 
 
 def _is_help_requested() -> bool:
