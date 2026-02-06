@@ -63,7 +63,6 @@ class Feature:
     """Used when setting and saving features."""
     setting_path: str = None
     available_on_free_tier: bool = False
-    requires_restart: bool = False
 
 
 @dataclass
@@ -254,12 +253,19 @@ class Controller:  # pylint: disable=too-many-public-methods
         return self._get_settings_by_path(settings, feature.setting_path)
 
     async def save_settings(self, settings: Settings):
-        """Returns general settings."""
-        # We need to call get_vpn_connector() because the API
-        # applies settings to current connection, even though
-        # currently it seems like it's not working.
-        await self.get_vpn_connector()
-        await self._api.save_settings(settings)
+        """Saves general settings."""
+        connector = await self.get_vpn_connector()
+        is_connected = connector.is_connected
+        free_user_requesting_free_features =\
+            self.user_on_free_tier and settings.features.are_free_tier_defaults()
+        if not free_user_requesting_free_features and is_connected:
+            # paying user requesting feature changes with live connection
+            # wait for LA connection event confirming feature request complete
+            async with _wait_for_event(connector,
+                                       event_types=[ConnectionStateEnum.CONNECTED]):
+                await self._api.save_settings(settings)
+        else:
+            await self._api.save_settings(settings)
 
     def _set_settings_by_path(
         self,

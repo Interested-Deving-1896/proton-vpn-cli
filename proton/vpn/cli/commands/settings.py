@@ -21,7 +21,7 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import click
 from tabulate import tabulate
@@ -222,7 +222,6 @@ BOOL_FEATURES = [
         human_friendly_name="VPN Accelerator",
         setting_path="features.vpn_accelerator",
         short_help=f"Toggle VPN Accelerator{REQUIRES_SUBSCRIPTION_PLAN}",
-        requires_restart=True,
         click_type=ToggleType()
     ),
     ClickFeature(
@@ -230,7 +229,6 @@ BOOL_FEATURES = [
         human_friendly_name="Moderate NAT",
         setting_path="features.moderate_nat",
         short_help=f"Toggle Moderate NAT{REQUIRES_SUBSCRIPTION_PLAN}",
-        requires_restart=True,
         click_type=ToggleType()
     ),
     ClickFeature(
@@ -238,7 +236,6 @@ BOOL_FEATURES = [
         human_friendly_name="IPv6",
         setting_path="ipv6",
         short_help="Toggle IPv6",
-        requires_restart=True,
         available_on_free_tier=True,
         click_type=ToggleType()
     ),
@@ -255,7 +252,6 @@ BOOL_FEATURES = [
         human_friendly_name="Port forwarding",
         setting_path="features.port_forwarding",
         short_help=f"Toggle Port forwarding{REQUIRES_SUBSCRIPTION_PLAN}",
-        requires_restart=True,
         click_type=ToggleType()
     )
 ]
@@ -264,7 +260,6 @@ CUSTOM_DNS_FEATURE = ClickFeature(
     human_friendly_name="Custom DNS",
     setting_path="custom_dns",
     short_help=f"Toggle Custom DNS and set DNS servers{REQUIRES_SUBSCRIPTION_PLAN}",
-    requires_restart=True,
     click_type=CustomDNSType()
 )
 NETSHIELD_FEATURE = ClickFeature(
@@ -272,7 +267,6 @@ NETSHIELD_FEATURE = ClickFeature(
     human_friendly_name="NetShield",
     setting_path="features.netshield",
     short_help=f"Set NetShield mode{REQUIRES_SUBSCRIPTION_PLAN}",
-    requires_restart=True,
     click_type=NetshieldType()
 )
 KILLSWITCH_FEATURE = ClickFeature(
@@ -301,16 +295,9 @@ def _raise_error_requires_higher_tier(feature_human_friendly_name: str) -> None:
 
 def _print_success_message(
     feature: Feature,
-    mode: str,
-    is_connection_active: Optional[bool] = None
+    mode: str
 ) -> None:
     msg = f"{feature.human_friendly_name} has been set to {mode}"
-    # Currently changing settings that should modify a current connection
-    # are not taken into consideration.
-    if feature.requires_restart and is_connection_active:
-        msg += ", please establish a new VPN connection for " \
-            "changes to take effect."
-
     click.echo(msg)
 
 
@@ -341,8 +328,7 @@ def _register_bool_feature_command(group: click.Group, feature: Feature):
         else:
             _print_success_message(
                 feature,
-                ToggleType.get_human_friendly_state_string(toggle_value),
-                await controller.is_connection_active()
+                ToggleType.get_human_friendly_state_string(toggle_value)
             )
 
 
@@ -391,8 +377,7 @@ async def netshield_command(ctx: click.Context, mode: str) -> None:
     else:
         _print_success_message(
             NETSHIELD_FEATURE,
-            f"'{NetshieldType.get_human_friendly_state_string(netshield_value)}'",
-            await controller.is_connection_active()
+            f"'{NetshieldType.get_human_friendly_state_string(netshield_value)}'"
         )
 
 
@@ -434,8 +419,7 @@ async def custom_dns_command(ctx: click.Context, state: str, dns_csv: str | None
     else:
         _print_success_message(
             CUSTOM_DNS_FEATURE,
-            ToggleType.get_human_friendly_state_string(toggle_value),
-            await controller.is_connection_active()
+            ToggleType.get_human_friendly_state_string(toggle_value)
         )
 
 

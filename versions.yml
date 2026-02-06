@@ -1,3 +1,12 @@
+version: 0.1.7rc5
+time: 2026/02/05 16:51
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "fix: Ensure connection settings can be changed without reconnection"
+---
 version: 0.1.7rc4
 time: 2026/01/30 09:49
 author: Richard Paterson
