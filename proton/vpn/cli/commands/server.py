@@ -68,6 +68,7 @@ def _print_usage_error(msg: str):
 @run_async
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
 async def connect(
     ctx,
     server_name: Optional[str],
@@ -137,12 +138,17 @@ async def connect(
     if connection_state:
         # notify user of successful connection and server details
         current_connection = connection_state.context.connection
-        server_ip = connection_state.context.event.context.connection_details.server_ipv4
+        connection_details = connection_state.context.event.context.connection_details
+        server_ip = connection_details.server_ipv4 if connection_details else None
         click.echo(
             f"Connected to {current_connection.server_name} "
             f"in {_get_most_specific_server_location(server)}. "
-            f"Your new IP address is {server_ip}."
         )
+        if server_ip:
+            click.echo(f"Your new IP address is {server_ip}.")
+
+        protocol = (await controller.get_settings()).protocol
+        _display_openvpn_warning_if_necessary(protocol)
     elif server:
         # we found a server but the connection failed
         raise FailedConnection(
@@ -174,6 +180,18 @@ def _get_most_specific_server_location(server: LogicalServer) -> str:
         return f"{server.city}, {server.entry_country_name}"
 
     return server.entry_country_name
+
+
+OPENVPN_UDP = "openvpn-udp"
+OPENVPN_TCP = "openvpn-tcp"
+
+
+def _display_openvpn_warning_if_necessary(protocol: str):
+    if protocol in [OPENVPN_UDP, OPENVPN_TCP]:
+        click.echo(
+            "OpenVPN is not fully supported in CLI and you may experience instability. "
+            "For best results, use WireGuard."
+        )
 
 
 def _compose_requested_features(

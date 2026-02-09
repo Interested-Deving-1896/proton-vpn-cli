@@ -1,3 +1,12 @@
+version: 0.1.7rc6
+time: 2026/02/06 17:42
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Add warning that OpenVPN protocol is not supported by CLI"
+---
 version: 0.1.7rc5
 time: 2026/02/05 16:51
 author: Richard Paterson
