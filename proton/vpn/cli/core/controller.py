@@ -67,6 +67,7 @@ class Feature:
     """Used when setting and saving features."""
     setting_path: str = None
     available_on_free_tier: bool = False
+    requires_restart: bool = False
 
 
 @dataclass

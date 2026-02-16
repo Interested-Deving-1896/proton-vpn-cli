@@ -131,6 +131,31 @@ def test_setting_all_features_shows_message_confirming_success(
                in result.output
 
 
+def test_setting_all_features_explains_reconnection_required_for_relevant_features_when_connected(
+    runner: CliRunner,
+    test_context: click.Context,
+    controller_mock: AsyncMock
+):
+    controller_mock.is_connection_active.return_value = True
+
+    for feature in ALL_FEATURES:
+        first_value_str = feature.click_type.to_list_of_str()[0]
+        result = runner.invoke(
+            app_cmd,
+            [CONFIG_COMMAND,
+             SET_COMMAND,
+             feature.command,
+             first_value_str],
+            parent=test_context
+        )
+
+        assert result.exit_code == 0
+
+        if feature.requires_restart:
+            assert ", please establish a new VPN connection for changes to take effect." \
+                   in result.output
+
+
 def test_setting_custom_dns_fails_when_not_provided_with_dns_option(
     runner: CliRunner,
     test_context: click.Context,

@@ -237,6 +237,7 @@ BOOL_FEATURES = [
         setting_path="ipv6",
         short_help="Toggle IPv6",
         available_on_free_tier=True,
+        requires_restart=True,
         click_type=ToggleType()
     ),
     ClickFeature(
@@ -260,6 +261,7 @@ CUSTOM_DNS_FEATURE = ClickFeature(
     human_friendly_name="Custom DNS",
     setting_path="custom_dns",
     short_help=f"Toggle Custom DNS and set DNS servers{REQUIRES_SUBSCRIPTION_PLAN}",
+    requires_restart=True,
     click_type=CustomDNSType()
 )
 NETSHIELD_FEATURE = ClickFeature(
@@ -295,9 +297,15 @@ def _raise_error_requires_higher_tier(feature_human_friendly_name: str) -> None:
 
 def _print_success_message(
     feature: Feature,
-    mode: str
+    mode: str,
+    is_connection_active: bool = False
 ) -> None:
     msg = f"{feature.human_friendly_name} has been set to {mode}"
+
+    if feature.requires_restart and is_connection_active:
+        msg += ", please establish a new VPN connection for " \
+            "changes to take effect."
+
     click.echo(msg)
 
 
@@ -332,7 +340,8 @@ def _register_bool_feature_command(group: click.Group, feature: Feature):
         else:
             _print_success_message(
                 feature,
-                ToggleType.get_human_friendly_state_string(toggle_value)
+                ToggleType.get_human_friendly_state_string(toggle_value),
+                is_connection_active=await controller.is_connection_active()
             )
 
 
@@ -423,7 +432,8 @@ async def custom_dns_command(ctx: click.Context, state: str, dns_csv: str | None
     else:
         _print_success_message(
             CUSTOM_DNS_FEATURE,
-            ToggleType.get_human_friendly_state_string(toggle_value)
+            ToggleType.get_human_friendly_state_string(toggle_value),
+            is_connection_active=await controller.is_connection_active()
         )
 
 

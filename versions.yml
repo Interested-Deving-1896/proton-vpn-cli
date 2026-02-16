@@ -1,3 +1,12 @@
+version: 0.1.7rc8
+time: 2026/02/16 12:12
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Custom DNS and ipv6 require a connection restart"
+---
 version: 0.1.7rc7
 time: 2026/02/16 11:14
 author: Richard Paterson
