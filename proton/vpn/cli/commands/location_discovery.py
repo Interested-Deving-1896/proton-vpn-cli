@@ -23,12 +23,17 @@ import os
 
 import click
 from tabulate import tabulate
+
 from proton.vpn.cli.core.run_async import run_async
 from proton.vpn.cli.core.controller import Controller
 from proton.vpn.session.servers.types import ServerFeatureEnum
-from proton.vpn.cli.core.exceptions import AuthenticationRequiredError, \
-    CountryCodeError, CountryNameError
+from proton.vpn.cli.core.exceptions import \
+    AuthenticationRequiredError, \
+    CountryCodeError, \
+    CountryNameError
 from proton.vpn.cli.commands.account import SIGNIN_COMMAND
+from proton.vpn.cli.commands.command_utils import \
+    inform_that_expired_serverlist_will_be_updated_if_necessary
 
 
 FEATURES_TO_DISPLAY = {
@@ -48,16 +53,18 @@ async def countries():
     """Discover available countries"""
 
 
+COUNTRIES_COMMAND = countries.name
 COUNTRIES_LIST_COMMAND = "list"
 
 
 @countries.command(name=COUNTRIES_LIST_COMMAND)
 @click.pass_context
 @run_async
-async def list_countries(ctx, controller: Controller = None):
+async def list_countries(ctx):
     """Display all available countries."""
-    if not controller:
-        controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
+    controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
+
+    await inform_that_expired_serverlist_will_be_updated_if_necessary(controller)
 
     try:
         all_countries = await controller.get_all_countries()
@@ -77,8 +84,6 @@ async def list_countries(ctx, controller: Controller = None):
     )
     click.echo(table)
 
-COUNTRIES_COMMAND = countries.name
-
 
 @click.group()
 @run_async
@@ -86,6 +91,7 @@ async def cities():
     """Discover available cities"""
 
 
+CITIES_COMMAND = cities.name
 CITIES_LIST_COMMAND = "list"
 PROGRAM_NAME = os.path.basename(sys.argv[0])
 
@@ -103,6 +109,8 @@ PROGRAM_NAME = os.path.basename(sys.argv[0])
 async def list_cities_in_country(ctx, country_input: str):
     """Display cities within a country"""
     controller = await Controller.create(params=ctx.obj, click_ctx=ctx)
+
+    await inform_that_expired_serverlist_will_be_updated_if_necessary(controller)
 
     try:
         all_countries = await controller.get_all_countries()

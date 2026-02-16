@@ -36,11 +36,14 @@ from proton.vpn.core.settings.custom_dns import CustomDNSEntry, CustomDNS
 from proton.vpn import logging as ProtonLogging
 from proton.vpn.cli.core.exception_handler import ExceptionHandler
 from proton.vpn.cli.core.exceptions import \
+    Authentication2FAFailedError, \
     AuthenticationRequiredError, \
+    AuthenticationFailedError, \
     CountryCodeError, \
     CountryNameError, \
-    RequiresHigherTierError, \
     InvalidDNS, \
+    RequiresHigherTierError, \
+    SignoutRequiredError, \
     VPNConnectionError
 from proton.vpn.connection import states
 from proton.vpn.connection.enum import ConnectionStateEnum
@@ -49,6 +52,7 @@ from proton.vpn.core.connection import VPNStateSubscriber, VPNConnection, VPNCon
 from proton.vpn.core.session_holder import ClientTypeMetadata
 from proton.vpn.core.settings import Settings
 from proton.vpn.session import ServerList
+from proton.vpn.session.dataclasses.servers import Country
 from proton.vpn.session.servers.country_codes import \
     validate_country_code, \
     get_country_code_for_name
@@ -69,6 +73,8 @@ class Feature:
 class Params:
     """The parameters for constructing the Controller"""
     verbose: str = False
+    allow_gui_concurrency: bool = False
+    overriding_controller: Optional['Controller'] = None
 
 
 @asynccontextmanager
@@ -147,7 +153,7 @@ class Controller:  # pylint: disable=too-many-public-methods
     @staticmethod
     async def create(params: Params, click_ctx: ClickContext):
         """Preferred method to get an instance of Controller."""
-        controller = Controller(params, click_ctx)
+        controller = params.overriding_controller or Controller(params, click_ctx)
         # Ensure controller always has settings loaded,
         # even if only using free user defaults prior to authentication.
         # This allows crash reporting to work prior to sign in.
@@ -412,7 +418,7 @@ class Controller:  # pylint: disable=too-many-public-methods
 
         return logical_server
 
-    async def get_all_countries(self):
+    async def get_all_countries(self) -> List[Country]:
         """Returns a list of countries."""
         if not self._api.is_user_logged_in():
             raise AuthenticationRequiredError
@@ -482,20 +488,18 @@ class Controller:  # pylint: disable=too-many-public-methods
             authentication token if invoked.
         """
         if self._api.is_user_logged_in():
-            print("Already signed in, please sign out first before changing accounts.")
-            return
+            raise SignoutRequiredError
 
         password = get_password()
         login_result = await self._api.login(username, password)
         if not login_result.authenticated:
-            print("Authentication failed. Please check your username and password and try again.")
-            return
+            raise AuthenticationFailedError
 
         try:
             while login_result.twofa_required:
                 login_result = await self._api.submit_2fa_code(get_2fa())
-        except ProtonAPIAuthenticationNeeded:
-            print("2FA Authentication failed. Please try again.")
+        except ProtonAPIAuthenticationNeeded as exc:
+            raise Authentication2FAFailedError from exc
 
     async def logout(self):
         """
@@ -516,13 +520,14 @@ class Controller:  # pylint: disable=too-many-public-methods
 
     async def get_updated_server_list(self) -> ServerList:
         """Returns an always-up-to-date server list."""
-        cached_server_list = self._api.server_list
-        if (cached_server_list is None
-                or cached_server_list.expired
-                or cached_server_list.loads_expired):
-            print("Server list is outdated, updating... This may take a moment.")
-
         return await self._api.refresher.get_up_to_date_server_list()
+
+    async def is_serverlist_expired(self) -> bool:
+        """Returns whether the caches serverlist has expired"""
+        cached_server_list = self._api.server_list
+        return (cached_server_list is None
+                or cached_server_list.expired
+                or cached_server_list.loads_expired)
 
     async def get_vpn_connector(self) -> VPNConnector:
         """Return the object that handles vpn connection and disconnection"""

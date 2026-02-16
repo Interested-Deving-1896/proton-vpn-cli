@@ -1,3 +1,12 @@
+version: 0.1.7rc7
+time: 2026/02/16 11:14
+author: Richard Paterson
+email: richard.paterson@proton.ch
+urgency: low
+stability: unstable
+description:
+- "feat: Adds tests for account, connection, config and location discovery commands"
+---
 version: 0.1.7rc6
 time: 2026/02/06 17:42
 author: Richard Paterson

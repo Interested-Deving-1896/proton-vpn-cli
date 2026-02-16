@@ -306,7 +306,11 @@ def config():
     """Configure Proton VPN settings"""
 
 
-@config.group(name="set")
+CONFIG_COMMAND = config.name
+SET_COMMAND = "set"
+
+
+@config.group(name=SET_COMMAND)
 def set_group():
     """Change a specific setting"""
 

@@ -28,12 +28,12 @@ import click
 from dbus_fast.aio import MessageBus
 from dbus_fast import BusType, Message, MessageType
 
-
 from proton.vpn.cli.commands.account import signin, signout, info
 from proton.vpn.cli.commands.server import connect, disconnect
 from proton.vpn.cli.commands.location_discovery import countries, cities
 from proton.vpn.cli.commands.settings import config
 from proton.vpn.cli.core.controller import Params
+from proton.vpn.cli.core.run_async import run_async
 
 try:
     __version__ = version("proton-vpn-cli")
@@ -100,16 +100,18 @@ class _OrderedGroup(click.Group):
     is_flag=True,
     default=False)
 @click.pass_context
-def app(ctx, verbose):
+@run_async
+async def app(ctx, verbose):
     """Groups all CLI commands"""
     ctx.obj.verbose = verbose
-    command_help_requested = _is_help_requested()
-    vpn_gui_running = asyncio.run(_vpn_gui_running())
-    if not command_help_requested and vpn_gui_running:
-        click.echo("Error: Proton VPN desktop app is currently running\n"
-                   "The CLI and GUI cannot run simultaneously. "
-                   "Please close the GUI application and try again.")
-        ctx.exit()
+    if not ctx.obj.allow_gui_concurrency:
+        command_help_requested = _is_help_requested()
+        vpn_gui_running = await _vpn_gui_running()
+        if not command_help_requested and vpn_gui_running:
+            click.echo("Error: Proton VPN desktop app is currently running\n"
+                       "The CLI and GUI cannot run simultaneously. "
+                       "Please close the GUI application and try again.")
+            ctx.exit()
 
 
 # account related functionality
