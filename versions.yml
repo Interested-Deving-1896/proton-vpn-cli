@@ -1,74 +1,18 @@
-version: 0.1.7rc8
-time: 2026/02/16 12:12
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: Custom DNS and ipv6 require a connection restart"
----
-version: 0.1.7rc7
-time: 2026/02/16 11:14
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: Adds tests for account, connection, config and location discovery commands"
----
-version: 0.1.7rc6
-time: 2026/02/06 17:42
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: Add warning that OpenVPN protocol is not supported by CLI"
----
-version: 0.1.7rc5
-time: 2026/02/05 16:51
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "fix: Ensure connection settings can be changed without reconnection"
----
-version: 0.1.7rc4
-time: 2026/01/30 09:49
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: add config listing command"
----
-version: 0.1.7rc3
-time: 2026/01/29 11:42
-author: Elena Svilpe
-email: elena.svilpe@proton.ch
-urgency: low
-stability: unstable
-description:
-- "fix: recover from manually deleted cache"
----
-version: 0.1.7rc2
-time: 2026/01/26 15:12
-author: Richard Paterson
-email: richard.paterson@proton.ch
-urgency: low
-stability: unstable
-description:
-- "feat: reformat countries listing command"
----
-version: 0.1.7rc1
-time: 2026/01/26 11:10
+version: 0.1.7
+time: 2026/02/17 13:56
 author: Richard Paterson
 email: richard.paterson@proton.ch
 urgency: low
 stability: unstable
 description:
 - "feat: simplify cities listing command"
+- "feat: reformat countries listing command"
+- "fix: recover from manually deleted cache (Elena Svilpe)"
+- "feat: add config listing command"
+- "fix: Ensure connection settings can be changed without reconnection"
+- "feat: Add warning that OpenVPN protocol is not supported by CLI"
+- "feat: Adds tests for account, connection, config and location discovery commands"
+- "feat: Custom DNS and ipv6 require a connection restart"
 ---
 version: 0.1.6
 time: 2026/01/22 11:30
