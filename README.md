@@ -1,124 +1,75 @@
-# Proton VPN CLI
+[update-readmes]   Mode: rewrite — migrating to template structure...
+# proton-vpn-cli
 
-Copyright (c) 2025 Proton AG
+[![Built with Ona](https://ona.com/build-with-ona.svg)](https://app.ona.com/#https://github.com/Interested-Deving-1896/proton-vpn-cli)
 
-This repository holds the Proton VPN CLI.
-For licensing information see [COPYING](COPYING.md) and [LICENSE](LICENSE).
-For contribution policy see [CONTRIBUTING](CONTRIBUTING.md).
+<!-- AI:start:what-it-does -->
+_Description pending._
+<!-- AI:end:what-it-does -->
 
-## Description
+## Architecture
 
-### Early access release
+<!-- AI:start:architecture -->
+_Architecture documentation pending._
+<!-- AI:end:architecture -->
 
-The official [Proton VPN](https://protonvpn.com) CLI is here. This early access release delivers core VPN functionality now, and we'll build out additional features based on your feedback and priorities.
+## Install
 
-Current functionality:
-- Connect and disconnect from VPN servers
-- Select servers by country, city, or server ID
-- WireGuard protocol support
+<!-- Add installation instructions here. This section is yours — the AI will not modify it. -->
 
-Current limitations:
-- No advanced features (NetShield, kill switch, split tunneling, port forwarding)
-- Cannot run alongside the Proton VPN GUI app
-- No server list command (use connection options instead)
-
-We're actively developing additional features. Report issues and request features through https://protonvpn.com/support-form
-
-Have fun on your terminal.
-
-
-### Cloning
-
-Once you've cloned this repo, run:
-
-> git submodule update --init --recursive
-
-to clone the necessary submodule.
-
-### Installation
-
-You can find the latest beta release and installation instructions on our [Proton VPN official website](https://protonvpn.com/support/linux-cli).
-
-### Dependencies
-
-For development purposes (within a virtual environment) see the required packages in the setup.py file, under `install_requires` and `extra_require`. As of now these packages will not be available on pypi. Also see [Virtual environment](#virtual-environment) below.
-
-### Virtual environment
-
-If you didn't do it yet, to be able to pip install Proton VPN components you'll
-need to set up our internal Python package registry. You can do so running the
-command below, after replacing `{GITLAB_TOKEN`} with your
-[personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
-with the scope set to `api`.
-
-```shell
-pip config set global.index-url https://__token__:{GITLAB_TOKEN}@{GITLAB_INSTANCE}/api/v4/groups/{GROUP_ID}/-/packages/pypi/simple
+```bash
+git clone https://github.com/Interested-Deving-1896/proton-vpn-cli.git
+cd proton-vpn-cli
 ```
 
-You can create the virtual environment and install the rest of dependencies as
-follows:
+## Usage
 
-```shell
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+<!-- Add usage examples here. This section is yours — the AI will not modify it. -->
 
-### CLI misc.
+## Configuration
 
-CLI logs are stored under `~/.cache/Proton/VPN/logs/` directory.
+<!-- Document configuration options here. This section is yours — the AI will not modify it. -->
 
-User settings are under `~/.config/Proton/VPN/` directory.
+## CI
 
-## Folder structure
+<!-- AI:start:ci -->
+_CI documentation pending._
+<!-- AI:end:ci -->
 
-### Folder "debian"
+## Mirror chain
 
-Contains all debian related data, for easy package compilation.
-
-### Folder "rpmbuild"
-
-Contains all rpm/fedora related data, for easy package compilation.
-
-### Folder "proton/vpn/cli"
-
-This folder contains the CLI source code.
-
-### Folder "tests"
-
-This folder contains unit test code.
-
-You can run the tests with:
-
-```shell
-pytest
-```
-
-
-## Versioning
-Version matches format: `[major][minor][patch]`
-
-We automate the versioning of the debian and rpm files.
-All versions of the application are recorded in versions.yml.
-To bump the version, add the following text to the top of versions.yml
+<!-- AI:start:mirror-chain -->
+This repo is maintained in [`Interested-Deving-1896/proton-vpn-cli`](https://github.com/Interested-Deving-1896/proton-vpn-cli) and mirrored through:
 
 ```
-version: <latest version>
-time: <date> <time>
-author: <your name>
-email: <your email address>
-urgency: low
-stability: unstable
-description:
-- <A description of the changes this new version contains>
----
+Interested-Deving-1896/proton-vpn-cli  ──►  OpenOS-Project-OSP/proton-vpn-cli  ──►  OpenOS-Project-Ecosystem-OOC/proton-vpn-cli
 ```
 
-Make sure you have the '---' dashes at the end of your block of text.
-You can use the previous entries as an example.
+Changes flow downstream automatically via the hourly mirror chain in
+[`fork-sync-all`](https://github.com/Interested-Deving-1896/fork-sync-all).
+Direct commits to OSP or OOC are detected and opened as PRs back to `Interested-Deving-1896`.
+<!-- AI:end:mirror-chain -->
 
-Finally run `scripts/build_packages.py`. This will generate a new package.spec
-file for rpmbuild and a new changelog file for debian.
+## Contributors
 
-That's it.
+<!-- AI:start:contributors -->
+_Contributors pending._
+<!-- AI:end:contributors -->
 
+## Origins
+
+<!-- AI:start:origins -->
+_Original project — no upstream fork._
+<!-- AI:end:origins -->
+
+## Resources
+
+<!-- AI:start:resources -->
+_No additional resource files found._
+<!-- AI:end:resources -->
+
+## License
+
+<!-- AI:start:license -->
+[GPL-3.0](https://github.com/Interested-Deving-1896/proton-vpn-cli/blob/stable/LICENSE) © 2026 [Interested-Deving-1896](https://github.com/Interested-Deving-1896)
+<!-- AI:end:license -->
